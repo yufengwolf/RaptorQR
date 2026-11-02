@@ -5,7 +5,8 @@
  * @module
  */
 
-import { inflateSync } from 'fflate';
+import { inflateSync, unzipSync } from 'fflate';
+import { guessMime, isBundlePayload } from '../lib/bundle';
 import {
   decodeQRCodesFromCanvas,
   type QrDecodeResult,
@@ -466,6 +467,38 @@ function completeDecodedPayload(
     } catch {
       // If metadata parsing fails, treat everything as raw data
     }
+  }
+
+  // Bundle (multi-file / folder) — the payload is a ZIP tagged with a sentinel
+  // filename. Unpack it into individual files for the UI.
+  if (!state.isText && isBundlePayload(filename, mime)) {
+    try {
+      const map = unzipSync(finalData);
+      const files = Object.keys(map)
+        .sort()
+        .map((name) => {
+          const bytes = map[name]!;
+          const copy = bytes.slice();
+          return { name, mime: guessMime(name), data: copy.buffer };
+        });
+      self.postMessage(
+        {
+          type: 'complete',
+          isText: false,
+          isBundle: true,
+          files,
+          autoStop: true,
+        },
+        { transfer: files.map((f) => f.data as ArrayBuffer) },
+      );
+    } catch (err: any) {
+      self.postMessage({
+        type: 'error',
+        message: `Bundle extraction failed: ${err.message ?? String(err)}`,
+      });
+    }
+    state.completed = true;
+    return;
   }
 
   if (state.isText) {

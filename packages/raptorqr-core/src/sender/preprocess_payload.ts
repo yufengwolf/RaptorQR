@@ -33,7 +33,7 @@ export function preprocessPayload(
   }
 
   if (compress && wrapped.length > 64) {
-    const compressed = deflateSync(wrapped);
+    const compressed = deflateSync(wrapped, { level: 9 });
     if (compressed.length < wrapped.length) {
       return {
         data: compressed,

@@ -164,6 +164,48 @@ body {
 .rq-check { display: inline-flex; align-items: center; gap: 7px; color: var(--text); font-size: 13px; cursor: pointer; }
 .rq-check input { width: 16px; height: 16px; accent-color: var(--accent); }
 .rq-hidden { display: none; }
+
+/* ── Drop zone & file list (sender) ──────────────────────────────────── */
+.rq-dropzone {
+  border: 1.5px dashed rgba(109,139,255,.45);
+  border-radius: 12px;
+  padding: 26px 18px;
+  text-align: center;
+  cursor: pointer;
+  background: rgba(109,139,255,.04);
+  transition: border-color .15s ease, background .15s ease, transform .15s ease;
+}
+.rq-dropzone:hover { border-color: rgba(109,139,255,.8); background: rgba(109,139,255,.08); }
+.rq-dropzone-active { border-color: var(--accent); background: rgba(109,139,255,.14); transform: scale(1.005); }
+.rq-dropzone-icon { font-size: 26px; line-height: 1; color: var(--accent); margin-bottom: 8px; }
+.rq-dropzone-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.rq-dropzone-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.rq-filelist { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.rq-filelist-head {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 9px 12px; font-size: 12px; color: var(--muted);
+  background: rgba(255,255,255,.03); border-bottom: 1px solid var(--border);
+}
+.rq-filelist-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,.05);
+}
+.rq-filelist-row:last-child { border-bottom: 0; }
+.rq-filelist-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text); }
+.rq-filelist-size { font-size: 12px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.rq-filelist-x {
+  border: 0; background: transparent; color: var(--muted); font-size: 16px; line-height: 1;
+  cursor: pointer; padding: 2px 6px; border-radius: 6px;
+}
+.rq-filelist-x:hover { color: #ff7b72; background: rgba(255,123,114,.12); }
+.rq-filelist-x:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── Bundle result list (receiver) ───────────────────────────────────── */
+.rq-bundle-list { display: flex; flex-direction: column; gap: 6px; }
+.rq-bundle-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: rgba(255,255,255,.02); }
+.rq-bundle-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text); }
+.rq-bundle-size { font-size: 12px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .rq-video { width: 100%; max-width: 560px; border-radius: 12px; background: #000; display: block; margin-top: 4px; }
 
 /* ── QR stage (sender live preview) ──────────────────────────────────── */

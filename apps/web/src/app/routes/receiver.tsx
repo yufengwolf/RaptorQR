@@ -34,6 +34,12 @@ interface ReceivedFile {
   mime: string;
 }
 
+interface BundleFile {
+  name: string;
+  mime: string;
+  data: ArrayBuffer;
+}
+
 type InputMode = 'camera' | 'gif-file';
 
 type DecodeRateSample = { time: number; count: number };
@@ -73,6 +79,7 @@ export function ReceiverPage() {
   const [acceptedPackets, setAcceptedPackets] = useState(0);
   const [neededPackets, setNeededPackets] = useState(0);
   const [receivedFile, setReceivedFile] = useState<ReceivedFile | null>(null);
+  const [receivedFiles, setReceivedFiles] = useState<BundleFile[]>([]);
   const [receivedText, setReceivedText] = useState('');
   const [textCopied, setTextCopied] = useState(false);
   const [gifFileName, setGifFileName] = useState('');
@@ -187,10 +194,16 @@ export function ReceiverPage() {
           break;
         }
         case 'complete': {
-          if (msg.isText) {
+          if (msg.isBundle) {
+            setReceivedFiles((msg.files ?? []) as BundleFile[]);
+            setReceivedText('');
+            setReceivedFile(null);
+            setTextCopied(false);
+          } else if (msg.isText) {
             setReceivedText(msg.text);
             setTextCopied(false);
             setReceivedFile(null);
+            setReceivedFiles([]);
           } else {
             setReceivedFile({
               data: msg.data as ArrayBuffer,
@@ -199,6 +212,7 @@ export function ReceiverPage() {
             });
             setReceivedText('');
             setTextCopied(false);
+            setReceivedFiles([]);
           }
           const elapsed = scanStartRef.current > 0 ? Date.now() - scanStartRef.current : 0;
           setElapsedMs(elapsed);
@@ -298,6 +312,7 @@ export function ReceiverPage() {
   const startCameraScanning = useCallback(async () => {
     setError('');
     setReceivedFile(null);
+    setReceivedFiles([]);
     setReceivedText('');
     setTextCopied(false);
     setTotalFrames(0);
@@ -424,6 +439,7 @@ export function ReceiverPage() {
     setGifFileName(`${file.name} · ${formatBytes(file.size)}`);
     setError('');
     setReceivedFile(null);
+    setReceivedFiles([]);
     setReceivedText('');
     setTextCopied(false);
     setTotalFrames(0);
@@ -524,6 +540,24 @@ export function ReceiverPage() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }, [receivedFile]);
+
+  const downloadBundleFile = useCallback((file: BundleFile) => {
+    const blob = new Blob([file.data], { type: file.mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name.split('/').pop() || 'file';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleDownloadAll = useCallback(() => {
+    receivedFiles.forEach((file, index) => {
+      window.setTimeout(() => downloadBundleFile(file), index * 120);
+    });
+  }, [receivedFiles, downloadBundleFile]);
 
   const handleChooseGifFile = useCallback(() => {
     gifFileInputRef.current?.click();
@@ -925,6 +959,29 @@ export function ReceiverPage() {
               </p>
               <button className="rq-btn" onClick={handleDownload}>
                 ⸗ {t('receiver.downloadRecovered')}
+              </button>
+            </div>
+          )}
+
+          {receivedFiles.length > 0 && (
+            <div className="rq-card" ref={fileResultRef}>
+              <div className="rq-card-title">
+                {t('receiver.recoveredBundle')} · {receivedFiles.length}
+              </div>
+              <p className="rq-hint" style={{ marginBottom: 10 }}>{t('receiver.bundleHint')}</p>
+              <div className="rq-bundle-list">
+                {receivedFiles.map((f, i) => (
+                  <div className="rq-bundle-row" key={`${f.name}-${i}`}>
+                    <span className="rq-bundle-name" title={f.name}>{f.name}</span>
+                    <span className="rq-bundle-size">{formatBytes(f.data.byteLength)}</span>
+                    <button className="rq-btn-secondary" onClick={() => downloadBundleFile(f)}>
+                      {t('receiver.download')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button className="rq-btn" style={{ marginTop: 10 }} onClick={handleDownloadAll}>
+                ⸗ {t('receiver.downloadAll')}
               </button>
             </div>
           )}

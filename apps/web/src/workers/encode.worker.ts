@@ -16,19 +16,30 @@ import {
   normalizeRaptorQRepairPercent,
   type FecCodec,
 } from '@raptorqr/core/fec/codec';
+import { zipSync } from 'fflate';
+import {
+  BUNDLE_FILENAME_SENTINEL,
+  BUNDLE_MIME,
+} from '../lib/bundle';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+interface BundleEntry {
+  name: string;
+  data: ArrayBuffer;
+}
+
 interface EncodeInput {
   type: 'encode';
-  data: ArrayBuffer;
-  isText: boolean;
-  compress: boolean;
+  data?: ArrayBuffer;
+  isText?: boolean;
+  compress?: boolean;
   filename?: string;
   mimeType?: string;
   symbolSize?: number;
   fecCodec?: FecCodec;
   raptorqRepairPercent?: number;
+  bundleEntries?: BundleEntry[];
 }
 
 interface EncodeOutput {
@@ -69,16 +80,48 @@ self.onmessage = (e: MessageEvent<EncodeInput>) => {
 };
 
 async function handleEncode(input: EncodeInput): Promise<EncodeOutput> {
-  const originalBytes = new Uint8Array(input.data);
   const fecCodec = normalizeFecCodec(input.fecCodec);
+  const isRaptorQ = fecCodec === 'wasm-raptorq';
 
-  if (fecCodec === 'wasm-raptorq') {
+  let dataToPacketize: Uint8Array;
+  let isText: boolean;
+  let compress: boolean;
+  let filename: string | undefined;
+  let mimeType: string | undefined;
+  let originalSize: number;
+
+  if (input.bundleEntries && input.bundleEntries.length > 0) {
+    // Pack selected files/folders into a single ZIP at max compression.
+    const files: Record<string, Uint8Array> = {};
+    let total = 0;
+    for (const entry of input.bundleEntries) {
+      const bytes = new Uint8Array(entry.data);
+      files[entry.name] = bytes;
+      total += bytes.length;
+    }
+    const zip = zipSync(files, { level: 9 });
+    dataToPacketize = zip;
+    isText = false;
+    compress = false;
+    filename = BUNDLE_FILENAME_SENTINEL;
+    mimeType = BUNDLE_MIME;
+    originalSize = total;
+  } else {
+    dataToPacketize = new Uint8Array(input.data ?? new ArrayBuffer(0));
+    isText = input.isText ?? false;
+    compress = input.compress ?? false;
+    filename = input.filename;
+    mimeType = input.mimeType;
+    originalSize = dataToPacketize.length;
+  }
+
+  if (isRaptorQ) {
     const result = await packetizeRaptorQ(
-      originalBytes,
-      input.isText,
-      input.compress,
-      input.filename,
-      input.mimeType,
+      dataToPacketize,
+      isText,
+      compress,
+      filename,
+      mimeType,
       {
         maxTransportPayloadSize: input.symbolSize ?? MAX_PAYLOAD_SIZE,
         repairPercent: normalizeRaptorQRepairPercent(
@@ -94,7 +137,7 @@ async function handleEncode(input: EncodeInput): Promise<EncodeOutput> {
       repairPacketIndices: result.repairPacketIndices,
       totalGenerations: result.totalGenerations,
       stats: {
-        originalSize: originalBytes.length,
+        originalSize,
         preprocessedSize: result.dataLength,
         frameCount: result.packets.length,
       },
@@ -103,11 +146,11 @@ async function handleEncode(input: EncodeInput): Promise<EncodeOutput> {
 
   // Legacy JS RLNC is explicit only; do not use it as a RaptorQ fallback.
   const result = packetizeLegacyRlnc(
-    originalBytes,
-    input.isText,
-    input.compress,
-    input.filename,
-    input.mimeType,
+    dataToPacketize,
+    isText,
+    compress,
+    filename,
+    mimeType,
     { symbolSize: input.symbolSize },
   );
   const frames = scheduleLegacyRlncFrames(result.packets, result.totalGenerations);
@@ -117,7 +160,7 @@ async function handleEncode(input: EncodeInput): Promise<EncodeOutput> {
     packets: frames,
     totalGenerations: result.totalGenerations,
     stats: {
-      originalSize: originalBytes.length,
+      originalSize,
       preprocessedSize: result.dataLength,
       frameCount: frames.length,
     },

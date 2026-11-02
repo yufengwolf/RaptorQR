@@ -53,6 +53,11 @@ import { QrWorkerPool } from '@/lib/qr_worker_pool';
 
 type InputMode = 'text' | 'file';
 
+interface SelectedItem {
+  path: string;
+  file: File;
+}
+
 interface GifResult {
   gifData: ArrayBuffer;
   width: number;
@@ -110,12 +115,14 @@ const QR_RENDER_BATCH_LIMIT = 32;
 const RENDER_CACHE_FILL_RATIO = 0.75;
 const LIVE_FPS_WINDOW_MS = 2_000;
 const LIVE_STATS_UPDATE_MS = 250;
+const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
 
 export function SenderPage() {
   useLang();
   const [mode, setMode] = useState<InputMode>('file');
   const [text, setText] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [items, setItems] = useState<SelectedItem[]>([]);
+  const [dragging, setDragging] = useState(false);
   const [encodingLive, setEncodingLive] = useState(false);
   const [preparingGif, setPreparingGif] = useState(false);
   const [status, setStatus] = useState('');
@@ -150,6 +157,7 @@ export function SenderPage() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
   const qrStageRef = useRef<HTMLDivElement | null>(null);
   const liveTransferRef = useRef<LiveTransfer | null>(null);
   const encodeWorkerRef = useRef<Worker | null>(null);
@@ -466,6 +474,14 @@ export function SenderPage() {
   }, []);
 
   useEffect(() => {
+    const el = folderInputRef.current;
+    if (el) {
+      el.setAttribute('webkitdirectory', '');
+      el.setAttribute('directory', '');
+    }
+  }, []);
+
+  useEffect(() => {
     liveTransferRef.current = liveTransfer;
 
     clearFrameCache(frameCacheRef.current);
@@ -554,15 +570,103 @@ export function SenderPage() {
     }
   }, [resetOutput, liveTransfer, gifResult, stats, encodingLive, preparingGif]);
 
-  const handleFile = useCallback((e: Event) => {
-    const input = e.target as HTMLInputElement;
-    const newFile = input.files?.[0] ?? null;
-    setFile(newFile);
+  const addItems = useCallback((incoming: SelectedItem[]) => {
+    if (incoming.length === 0) return;
+    setItems((prev) => [...prev, ...incoming]);
     resetOutput();
   }, [resetOutput]);
 
+  const removeItem = useCallback((index: number) => {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+    resetOutput();
+  }, [resetOutput]);
+
+  const handleFilesSelected = useCallback((fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const incoming: SelectedItem[] = [];
+    for (const f of Array.from(fileList)) incoming.push({ path: f.name, file: f });
+    addItems(incoming);
+  }, [addItems]);
+
+  const handleFolderSelected = useCallback((fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const incoming: SelectedItem[] = [];
+    for (const f of Array.from(fileList)) {
+      const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+      incoming.push({ path: rel, file: f });
+    }
+    addItems(incoming);
+  }, [addItems]);
+
   const handleChooseFile = useCallback(() => {
     fileInputRef.current?.click();
+  }, []);
+
+  const handleChooseFolder = useCallback(() => {
+    folderInputRef.current?.click();
+  }, []);
+
+  const readEntry = useCallback((entry: any, base: string): Promise<SelectedItem[]> => {
+    return new Promise((resolve) => {
+      if (entry.isFile) {
+        entry.file(
+          (file: File) => resolve([{ path: base + entry.name, file }]),
+          () => resolve([]),
+        );
+      } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        const out: SelectedItem[] = [];
+        const readBatch = () => {
+          reader.readEntries(async (children: any[]) => {
+            if (children.length === 0) { resolve(out); return; }
+            const sub = await Promise.all(children.map((c) => readEntry(c, base + entry.name + '/')));
+            for (const s of sub) out.push(...s);
+            readBatch();
+          }, () => resolve(out));
+        };
+        readBatch();
+      } else {
+        resolve([]);
+      }
+    });
+  }, []);
+
+  const handleDrop = useCallback(async (e: DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const dt = e.dataTransfer;
+    if (!dt) return;
+
+    // Capture everything synchronously — some browsers clear the DataTransfer
+    // once the drop handler yields to await.
+    const itemEntries: any[] = [];
+    if (dt.items && dt.items.length > 0) {
+      for (const it of Array.from(dt.items)) {
+        const entry = (it as any).webkitGetAsEntry?.();
+        if (entry) itemEntries.push(entry);
+      }
+    }
+    const droppedFiles = Array.from(dt.files);
+
+    let incoming: SelectedItem[] = [];
+    if (itemEntries.length > 0) {
+      const results = await Promise.all(itemEntries.map((entry) => readEntry(entry, '')));
+      for (const r of results) incoming.push(...r);
+    }
+    if (incoming.length === 0) {
+      for (const f of droppedFiles) incoming.push({ path: f.name, file: f });
+    }
+    addItems(incoming);
+  }, [addItems, readEntry]);
+
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    setDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
   }, []);
 
   const handleQRVersionChange = useCallback((value: string) => {
@@ -613,22 +717,38 @@ export function SenderPage() {
     resetOutput();
     const runId = runIdRef.current;
 
-    let data: ArrayBuffer;
-    let isText: boolean;
+    let data: ArrayBuffer | null = null;
+    let isText = false;
+    let compress = false;
+    let filename: string | undefined;
+    let mimeType: string | undefined;
+    let bundleEntries: { name: string; data: ArrayBuffer }[] | null = null;
 
     if (mode === 'text') {
       const trimmed = text.trim();
       if (!trimmed) { setError(t('sender.err.noText')); return; }
-      data = new TextEncoder().encode(trimmed).buffer as ArrayBuffer;
+      const bytes = new TextEncoder().encode(trimmed);
+      data = bytes.buffer as ArrayBuffer;
       isText = true;
-    } else {
-      if (!file) { setError(t('sender.err.noFile')); return; }
-      if (file.size > 8 * 1024 * 1024) { setError(t('sender.err.fileTooLarge')); return; }
-      data = await file.arrayBuffer();
+      compress = bytes.byteLength > 64;
+    } else if (items.length === 1 && !items[0].path.includes('/')) {
+      const f = items[0].file;
+      if (f.size > MAX_TOTAL_BYTES) { setError(t('sender.err.fileTooLarge')); return; }
+      data = await f.arrayBuffer();
       isText = false;
+      compress = f.size > 64;
+      filename = f.name;
+      mimeType = f.type || 'application/octet-stream';
+    } else {
+      if (items.length === 0) { setError(t('sender.err.noFile')); return; }
+      const total = items.reduce((sum, it) => sum + it.file.size, 0);
+      if (total > MAX_TOTAL_BYTES) { setError(t('sender.err.fileTooLarge')); return; }
+      bundleEntries = [];
+      for (const it of items) {
+        bundleEntries.push({ name: it.path, data: await it.file.arrayBuffer() });
+      }
     }
 
-    const compress = data.byteLength > 64;
     const selectedQRProfile = createQRTransferProfile(qrVersion, eccLevel, qrEncoder);
 
     setEncodingLive(true);
@@ -661,20 +781,33 @@ export function SenderPage() {
           }
         };
         worker.onerror = (err) => { clearTimeout(timeout); reject(err); };
-        worker.postMessage(
-          {
-            type: 'encode',
-            data,
-            isText,
-            compress,
-            symbolSize: selectedQRProfile.maxPayloadSize,
-            fecCodec,
-            raptorqRepairPercent,
-            filename: mode === 'file' ? file?.name : undefined,
-            mimeType: mode === 'file' ? file?.type : undefined,
-          },
-          [data],
-        );
+        if (bundleEntries) {
+          worker.postMessage(
+            {
+              type: 'encode',
+              bundleEntries,
+              symbolSize: selectedQRProfile.maxPayloadSize,
+              fecCodec,
+              raptorqRepairPercent,
+            },
+            { transfer: bundleEntries.map((b) => b.data) },
+          );
+        } else {
+          worker.postMessage(
+            {
+              type: 'encode',
+              data: data as ArrayBuffer,
+              isText,
+              compress,
+              symbolSize: selectedQRProfile.maxPayloadSize,
+              fecCodec,
+              raptorqRepairPercent,
+              filename,
+              mimeType,
+            },
+            data ? { transfer: [data as ArrayBuffer] } : undefined,
+          );
+        }
       });
 
       if (runId !== runIdRef.current) return;
@@ -720,7 +853,7 @@ export function SenderPage() {
   }, [
     mode,
     text,
-    file,
+    items,
     resetOutput,
     qrVersion,
     eccLevel,
@@ -872,24 +1005,84 @@ export function SenderPage() {
             onInput={(e) => handleTextChange((e.target as HTMLTextAreaElement).value)}
           />
         ) : (
-          <div className="rq-row" style={{ marginTop: 10 }}>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="rq-hidden"
-              onChange={handleFile}
-            />
-            <button
-              type="button"
-              className="rq-btn-secondary"
-              disabled={encodingLive}
+          <div style={{ marginTop: 10 }}>
+            <div
+              className={dragging ? 'rq-dropzone rq-dropzone-active' : 'rq-dropzone'}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
               onClick={handleChooseFile}
+              role="button"
+              tabIndex={0}
             >
-              {t('sender.input.chooseFile')}
-            </button>
-            <span className="rq-filename" title={file?.name ?? ''}>
-              {file ? `${file.name} · ${formatBytes(file.size)}` : t('sender.input.noFile')}
-            </span>
+              <div className="rq-dropzone-icon">⬆</div>
+              <div className="rq-dropzone-title">{t('sender.drop.hint')}</div>
+              <div className="rq-dropzone-sub">{t('sender.drop.sub')}</div>
+            </div>
+
+            <div className="rq-row" style={{ marginTop: 10, gap: 8 }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="rq-hidden"
+                onChange={(e) => handleFilesSelected((e.target as HTMLInputElement).files)}
+              />
+              <input
+                ref={folderInputRef}
+                type="file"
+                multiple
+                className="rq-hidden"
+                onChange={(e) => handleFolderSelected((e.target as HTMLInputElement).files)}
+              />
+              <button
+                type="button"
+                className="rq-btn-secondary"
+                disabled={encodingLive}
+                onClick={handleChooseFile}
+              >
+                {t('sender.input.chooseFile')}
+              </button>
+              <button
+                type="button"
+                className="rq-btn-secondary"
+                disabled={encodingLive}
+                onClick={handleChooseFolder}
+              >
+                {t('sender.input.chooseFolder')}
+              </button>
+            </div>
+
+            {items.length > 0 && (
+              <div className="rq-filelist">
+                <div className="rq-filelist-head">
+                  <span>{t('sender.drop.selected', { n: items.length })}</span>
+                  <span>
+                    {t('sender.drop.total')}{' '}
+                    {formatBytes(items.reduce((s, it) => s + it.file.size, 0))}
+                  </span>
+                </div>
+                {items.map((it, i) => (
+                  <div className="rq-filelist-row" key={`${it.path}-${i}`}>
+                    <span className="rq-filelist-name" title={it.path}>{it.path}</span>
+                    <span className="rq-filelist-size">{formatBytes(it.file.size)}</span>
+                    <button
+                      type="button"
+                      className="rq-filelist-x"
+                      disabled={encodingLive}
+                      onClick={() => removeItem(i)}
+                      aria-label="remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {(items.length > 1 || items[0].path.includes('/')) && (
+                  <p className="rq-hint" style={{ marginTop: 8 }}>{t('sender.drop.explain')}</p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
