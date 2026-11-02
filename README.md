@@ -1,154 +1,148 @@
-[![npm](https://img.shields.io/npm/v/@raptorqr/core?label=npm)](https://www.npmjs.com/package/@raptorqr/core)
-[![license](https://img.shields.io/npm/l/@raptorqr/core)](LICENSE)
-[![Live Demo](https://img.shields.io/badge/Live-Demo-2ea44f)](https://qr.linkto.host/)
 # RaptorQR
 
-**The world's fastest** files and texts transfer between devices by displaying high-throughput animated QR codes and reading them with a camera.
+通过屏幕播放高吞吐动画二维码、摄像头读取，在设备间实现**目前已知最快**的文件与文本传输。
 
-Everything runs locally in the browser or terminal: no upload server, no Bluetooth, no cable.
+全部在浏览器或终端本地运行：无上传服务器、无蓝牙、无数据线。
 
-RaptorQR started from an earlier open-source QR streaming prototype and has since become a substantial rewrite of the core transfer pipeline and user experience: FEC, QR rendering, worker scheduling, scanner integration, sender/receiver UI, CLI packaging, and the repo layout have all been rebuilt around a higher-throughput, production-ready architecture.
+> **维护说明**：本仓库为 RaptorQR 的独立维护分支，已从上游 `infrost/RaptorQR` 分离，不再关联原作者的远程仓库与社区讨论。
+> 原项目以 MIT 协议发布，版权归原作者所有（见 `LICENSE`）；本分支在此基础上独立维护。
 
-<img width="221" height="480" alt="raptorQR" src="https://github.com/user-attachments/assets/e4a5f6f5-5fe8-4953-931a-a86a509b52e5" />
+## 目录
 
-Live demo: https://qr.linkto.host/
+- [性能](#性能)
+- [软件包](#软件包)
+- [功能特性](#功能特性)
+- [常见问题](#常见问题)
+- [开发](#开发)
+- [部署](#部署)
+- [命令行 CLI](#命令行-cli)
+- [WASM 产物](#wasm-产物)
+- [实现说明](#实现说明)
+- [致谢与许可](#致谢与许可)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Finfrost%2Fraptorqr)
+## 性能
 
-## Table of Contents
+RaptorQR 使用 Rust 实现的 [`cberner/raptorq`](https://github.com/cberner/raptorq)（RaptorQ，RFC 6330）编译为 WASM，作为主喷泉码编解码器；并将 [`erwanvivien/fast_qr`](https://github.com/erwanvivien/fast_qr) 编译为 WASM 用于高速二维码渲染（相比上游 WASM 包做了更完整的封装）；扫描则使用 ZXing WASM。
 
-* [Performance](#performance)
-* [Packages](#packages)
-* [Features](#features)
-* [FAQ](#faq)
-* [Development](#development)
-* [CLI](#cli)
-* [WASM Artifacts](#wasm-artifacts)
-* [Implementation Notes](#implementation-notes)
-* [Links & Acknowledgements](#links--acknowledgements)
+相比原本纯 JavaScript 的传输链路，性能有数量级提升。实测中，新链路在实际传输场景下至少达到 **50 倍以上**的吞吐提升。
 
+实测示例：
 
-## Performance
+| 场景 | 结果 |
+| --- | --- |
+| V20 二维码，4 码并行播放，30 FPS | 最高 300 个解码二维码符号/秒 |
+| V30 二维码，4 码并行播放，30 FPS | 100+ 个解码二维码符号/秒 |
+| 95.2 KB 文件传输（V30-L × 4QR@30fps） | 375 ms，约 254.0 KB/s |
+| 6.5 MB 文件传输（V30-L × 4QR@30fps） | 36 s，约 183.6 KB/s |
 
-RaptorQR uses the Rust [`cberner/raptorq`](https://github.com/cberner/raptorq) implementation of RaptorQ (RFC 6330), compiled to WASM, as its primary fountain-code codec. This project also compiles [`erwanvivien/fast_qr`](https://github.com/erwanvivien/fast_qr) to WASM for high-speed QR rendering, with a more feature-complete wrapper than the upstream WASM package, and uses ZXing WASM for scanning.
+> 95.2 KB 与 6.5 MB 测试以 **iPhone 16 / Safari 作为扫码端** 作为「实验室结果」测得。实际速度取决于设备摄像头素质、浏览器性能、光线、二维码尺寸与版本、播放速率及扫描设置。
+>
+> 当前 RaptorQ WASM 链路已可用于本地离线传输工作流。
 
-The result is a massive performance improvement over the original JavaScript-only transfer path. In measured tests, the new pipeline reaches at least **50x+ higher throughput** in practical transfer scenarios.
+## 软件包
 
-Measured examples:
-
-| Scenario                                  |                         Result |
-| ----------------------------------------- | -----------------------------: |
-| V20 QR, 4-code parallel playback, 30 FPS  | up to 300 decoded QR symbols/s |
-| V30 QR, 4-code parallel playback, 30 FPS  |      100+ decoded QR symbols/s |
-| 95.2 KB file transfer (V30-L x 4QR@30fps) |       375 ms, about 254.0 KB/s |
-| 6.5 MB file transfer (V30-L x 4QR@30fps)  |         36 s, about 183.6 KB/s |
-
-<img width="295" height="203" alt="clipboard_2026-07-08_17-21" src="https://github.com/user-attachments/assets/a5d5fced-8042-447a-ba58-00c42ee107f6" />
-
-The 95.2 KB and 6.5 MB file tests were measured on **iPhone 16 / Safari as QR scanner** as 'lab results'. Actual speed depends on device camera quality, browser performance, lighting, QR size, QR version, playback rate, and scan settings.
-
-The current RaptorQ WASM path is intended to be production-ready for local offline transfer workflows.
-
-## Packages
-
-| Package | Version | Install | Usage |
+| 软件包 | 版本 | 安装 | 用途 |
 | --- | --- | --- | --- |
-| `@raptorqr/core` | [![npm](https://img.shields.io/npm/v/@raptorqr/core)](https://www.npmjs.com/package/@raptorqr/core) | `pnpm add @raptorqr/core` | [Packetize, schedule, render, and decode](packages/raptorqr-core/README.md#send-with-raptorq) |
-| `@raptorqr/cli` | [![npm](https://img.shields.io/npm/v/@raptorqr/cli)](https://www.npmjs.com/package/@raptorqr/cli) | `pnpm add --global @raptorqr/cli` | [Terminal sender and local web server](packages/raptorqr-cli/README.md#usage) |
-| `@raptorqr/fast-qr-wasm` | [![npm](https://img.shields.io/npm/v/@raptorqr/fast-qr-wasm)](https://www.npmjs.com/package/@raptorqr/fast-qr-wasm) | `pnpm add @raptorqr/fast-qr-wasm` | [Render QR codes as RGBA or matrices](packages/raptorqr-fast-qr-wasm/README.md#render-rgba) |
-| `@raptorqr/raptorq-wasm` | [![npm](https://img.shields.io/npm/v/@raptorqr/raptorq-wasm)](https://www.npmjs.com/package/@raptorqr/raptorq-wasm) | `pnpm add @raptorqr/raptorq-wasm` | [Low-level RaptorQ encode and decode](packages/raptorqr-raptorq-wasm/README.md#encode-and-decode) |
+| `@raptorqr/core` | — | `pnpm add @raptorqr/core` | [打包、调度、渲染与解码](packages/raptorqr-core/README.md#send-with-raptorq) |
+| `@raptorqr/cli` | — | `pnpm add --global @raptorqr/cli` | [终端发送端与本地静态服务器](packages/raptorqr-cli/README.md#usage) |
+| `@raptorqr/fast-qr-wasm` | — | `pnpm add @raptorqr/fast-qr-wasm` | [以 RGBA 或矩阵渲染二维码](packages/raptorqr-fast-qr-wasm/README.md#render-rgba) |
+| `@raptorqr/raptorq-wasm` | — | `pnpm add @raptorqr/raptorq-wasm` | [底层 RaptorQ 编解码](packages/raptorqr-raptorq-wasm/README.md#encode-and-decode) |
 
-Most applications should install `@raptorqr/core`; it already uses the two
-WASM packages internally. Install the WASM packages directly only for
-low-level codec or renderer integration. The non-published Preact/Vite web app
-lives in `apps/web`.
+大多数应用只需安装 `@raptorqr/core`；它已在内部使用上述两个 WASM 包。仅在进行底层编解码或渲染集成时，才需要直接安装 WASM 包。未发布的 Preact/Vite 网页应用位于 `apps/web`。
 
-## Features
+## 功能特性
 
-* Browser sender/receiver for text and file transfer
-* Improved sender/receiver UI for live playback, scanning, tuning, and transfer status
-* Terminal sender via the `raptorqr` CLI
-* Primary RaptorQ WASM fountain codec
-* JS RLNC compatible codec (Deprecated)
-* fast_qr WASM QR rendering, (ZXing WASM QR writer as optional)
-* ZXing WASM QR scanning with configurable decoder settings
-* Parallel QR playback, live Canvas rendering, and optional GIF export
-* Adjustable QR version, ECC level, playback FPS, scan FPS, and repair overhead
+- 浏览器发送端/接收端，支持文本与文件传输
+- 改进版的发送/接收界面：实时播放、扫描、参数调优与传输状态
+- 通过 `raptorqr` CLI 的终端发送端
+- 主用 RaptorQ WASM 喷泉码编解码器
+- JS RLNC 兼容编解码器（已弃用）
+- fast_qr WASM 二维码渲染（ZXing WASM 二维码写入器作为可选）
+- ZXing WASM 二维码扫描，解码参数可配置
+- 并行二维码播放、实时 Canvas 渲染，以及可选的 GIF 导出
+- 可调二维码版本、ECC 等级、播放 FPS、扫描 FPS 与冗余开销
 
-## FAQ
+## 常见问题
 
-### Can I use RaptorQR offline?
+### RaptorQR 可以离线使用吗？
 
-Yes. The web app includes `sw.js` and is already PWA-ready. After the first load, you can open the same link again even without an internet connection.
+可以。网页应用自带 `sw.js`，已具备 PWA 能力。首次加载后，即使断网也可再次打开同一链接。
 
-### Does RaptorQR upload my files anywhere?
+### RaptorQR 会把我的文件上传到别处吗？
 
-No. Transfers run locally in the browser or terminal. Files and text are encoded into animated QR codes on the sender side and decoded from the camera feed on the receiver side.
+不会。传输完全在浏览器或终端本地运行。文件与文本在发送端被编码为动画二维码，在接收端从摄像头画面解码还原。
 
+## 开发
 
-## Development
-
-Install dependencies:
+安装依赖：
 
 ```bash
 pnpm install
 ```
 
-Run the web app in development:
+启动网页开发服务器：
 
 ```bash
 pnpm dev:web
 ```
 
-Then open the Vite URL printed in the terminal, usually:
+随后打开终端打印的 Vite 地址，通常是：
 
 ```text
 http://localhost:5173
 ```
 
-If you need camera access from another device on the same LAN, serve it over an allowed HTTPS/dev host as required by your browser's camera security policy.
+如需在**同一局域网的其他设备（如手机）上调用摄像头**，必须通过安全上下文（HTTPS 或 localhost）访问——浏览器安全策略会拒绝在纯 HTTP（含局域网 IP 的 HTTP）下使用摄像头 API。
 
-Build everything:
+- 本地调试可用 `localhost:5173`（无需 HTTPS）。
+- 手机/局域网访问：先用本仓库附带的局域网 HTTPS 服务 `serve_web.py`（自签证书，已包含局域网 IP 的 SAN）托管构建产物，见下方[部署](#部署)。
+
+构建全部内容：
 
 ```bash
 pnpm build
 ```
 
-### Deploy Web App On Vercel
+## 部署
 
-This repo includes a root `vercel.json`, so Vercel can deploy the web app from the monorepo without changing the project root in the dashboard.
+本工程是**纯前端、零后端**的静态站点：发送端与接收端全部在浏览器本地运行，数据不上传任何服务器。合法证书由平台提供，无「不安全」警告。
 
-Vercel will run:
+### Cloudflare Pages（推荐）
+
+1. 连接本仓库（或上传 `apps/web/dist`）。
+2. 构建设置：
+   - **构建命令**：`pnpm --filter @raptorqr/web build`
+   - **输出目录**：`apps/web/dist`
+   - **Node 版本**：22（在 Pages 设置或 `package.json` 的 `engines` 中指定）
+3. 无需 SPA 回退规则：网页使用 `base: './'` 与 hash 路由，静态托管即可直接打开。
+
+> 公网部署**不会影响传输速度**——传输是「屏幕→摄像头」的本地光信道，平台仅在手机首次下载网页时用到网络；实际速率由摄像头/光信道硬件上限决定。
+
+### Vercel
+
+仓库根目录已包含 `vercel.json`，Vercel 可直接从 monorepo 部署，无需在后台修改项目根目录。Vercel 会执行：
 
 ```bash
 pnpm --filter @raptorqr/web build
 ```
 
-and serve:
+并托管：
 
 ```text
 apps/web/dist
 ```
 
-Run tests:
+### 局域网 HTTPS（手机调用摄像头）
+
+仓库根目录的 `serve_web.py` 是一个局域网自签 HTTPS 服务，用于在本机托管 `apps/web/dist` 并通过包含局域网 IP 的证书让手机摄像头可用：
 
 ```bash
-pnpm test
+python serve_web.py     # 自签 HTTPS，默认端口 8443，证书 SAN 含 localhost 与局域网 IP
 ```
 
-Run the CLI locally. This builds the Node bundle, then starts it:
+手机浏览器打开 `https://<电脑局域网IP>:8443/`，点击「继续」忽略证书警告即可。打开后默认中文界面，右上角可切换中/英文。
 
-```bash
-pnpm --filter @raptorqr/cli cli
-```
-
-Smoke-test the built CLI:
-
-```bash
-node packages/raptorqr-cli/dist/raptorqr.js --help
-```
-
-## CLI
+## 命令行 CLI
 
 ```bash
 raptorqr document.pdf
@@ -156,71 +150,61 @@ echo "Hello, world!" | raptorqr
 raptorqr --serve --port 8080
 ```
 
-`raptorqr document.pdf` reads the local file, preserves the filename and MIME
-metadata, and displays a looping RaptorQ QR stream in the terminal. It does not
-upload the file, create a URL, or write a new output file; scan the QR stream
-with the RaptorQR receiver to reconstruct `document.pdf` on the receiving
-device.
+- `raptorqr document.pdf`：读取本地文件，保留文件名与 MIME 元数据，在终端循环播放 RaptorQ 二维码流。它不会上传文件、生成链接或写出新文件；用 RaptorQR 接收端扫描该二维码流即可在接收设备还原 `document.pdf`。
+- `echo "Hello, world!" | raptorqr`：从 stdin 读取文本，以同样的循环终端二维码流展示。
+- `raptorqr --serve --port 8080`：启动一个托管已构建网页应用的本地静态服务器。先运行 `pnpm build`，再打开 `http://localhost:8080`。
 
-`echo "Hello, world!" | raptorqr` reads text from stdin and displays it as the
-same looping terminal QR stream.
+按 `q` 或 `Ctrl-C` 停止终端二维码发送端。
 
-`raptorqr --serve --port 8080` starts a local static server for the built web
-app. Run `pnpm build` first, then open `http://localhost:8080`.
-
-Press `q` or `Ctrl-C` to stop the terminal QR sender.
-
-The CLI bundle is built at:
+CLI 产物构建于：
 
 ```text
 packages/raptorqr-cli/dist/raptorqr.js
 ```
 
-The CLI copies its required WASM sidecars into the same `dist/` directory.
+CLI 会将其所需的 WASM 附属文件拷贝到同一 `dist/` 目录。
 
-## WASM Artifacts
+## WASM 产物
 
-The generated artifacts live under:
+生成产物位于：
 
 ```text
 packages/raptorqr-fast-qr-wasm/src/wasm
 packages/raptorqr-raptorq-wasm/src/wasm
 ```
 
-The build scripts are:
+构建脚本为：
 
 ```text
 packages/raptorqr-fast-qr-wasm/src/build_fast_qr_wasm_colab.py
 packages/raptorqr-raptorq-wasm/src/build_raptorq_wasm_colab.py
 ```
 
-You can paste the scripts into a Colab notebook to build the WASM artifacts. The scripts will download and build the upstream Rust dependencies, then compile them to WASM.
+可将脚本粘贴到 Colab notebook 中构建 WASM 产物。脚本会下载并构建上游 Rust 依赖，再将其编译为 WASM。
 
-## Implementation Notes
+## 实现说明
 
-The protocol keeps the existing fixed 8-byte transport header. RaptorQ packets use the reserved symbol index sentinel, while JS RLNC packets use the legacy symbol index range.
+协议沿用既有的固定 8 字节传输头。RaptorQ 数据包使用保留的符号索引哨兵值，而 JS RLNC 数据包使用旧的象征索引区间。
 
-`wasm-raptorq` is the default FEC codec. `js-rlnc` is still exported and test-covered, but it is deprecated and is never used as an automatic fallback.
+`wasm-raptorq` 是默认的 FEC 编解码器。`js-rlnc` 仍被导出且有测试覆盖，但已弃用，且绝不会作为自动回退使用。
 
-For a deeper protocol and package overview, see [ARCHITECTURE.md](ARCHITECTURE.md).
+更深入的协议与软件包概览见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
-## Links & Acknowledgements
+## 致谢与许可
 
-RaptorQR stands on the shoulders of excellent open-source projects and developer communities.
+RaptorQR 建立在优秀的开源项目与开发者社区之上。
 
-### Open-source projects used
+### 使用的开源项目
 
-* [hermitm0nk/qr-stream](https://github.com/hermitm0nk/qr-stream) — The Project orginally being inspired
-* [cberner/raptorq](https://github.com/cberner/raptorq) — RaptorQ / RFC 6330 fountain-code implementation used by the WASM FEC codec.
-* [erwanvivien/fast_qr](https://github.com/erwanvivien/fast_qr) — high-speed QR code rendering library compiled to WASM.
-* [Sec-ant/zxing-wasm](https://github.com/Sec-ant/zxing-wasm) — ZXing-C++ WebAssembly build used for QR/barcode scanning.
-* [ZXing-C++](https://github.com/zxing-cpp/zxing-cpp) — C++ port of ZXing, the underlying barcode image processing library.
-* [ZXing](https://github.com/zxing/zxing) — the original open-source multi-format barcode scanning project.
-* [Preact](https://preactjs.com/) — lightweight UI framework used by the web app.
-* [Vite](https://vite.dev/) — frontend build tool and development server.
-* [pnpm](https://pnpm.io/) — package manager used for the monorepo workspace.
+- [cberner/raptorq](https://github.com/cberner/raptorq) — WASM FEC 编解码器所用的 RaptorQ / RFC 6330 喷泉码实现。
+- [erwanvivien/fast_qr](https://github.com/erwanvivien/fast_qr) — 编译为 WASM 的高速二维码渲染库。
+- [Sec-ant/zxing-wasm](https://github.com/Sec-ant/zxing-wasm) — 用于二维码/条码扫描的 ZXing-C++ WebAssembly 构建。
+- [ZXing-C++](https://github.com/zxing-cpp/zxing-cpp) — ZXing 的 C++ 移植，底层条码图像处理库。
+- [ZXing](https://github.com/zxing/zxing) — 最初的开源多格式条码扫描项目。
+- [Preact](https://preactjs.com/) — 网页应用使用的轻量 UI 框架。
+- [Vite](https://vite.dev/) — 前端构建工具与开发服务器。
+- [pnpm](https://pnpm.io/) — monorepo 工作区使用的包管理器。
 
-### Community (Where this project is being discussed)
+### 许可
 
-* [LINUX DO](https://linux.do/t/topic/2549646)
-* [Appinn](https://meta.appinn.net/t/topic/87996/6)
+本项目以 **MIT 协议**发布。原项目版权归 **© 2026 Haixiang** 所有（见 `LICENSE`）；本独立维护分支在保留原许可与版权声明的前提下进行维护与修改。

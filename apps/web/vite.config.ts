@@ -22,7 +22,8 @@ export default defineConfig({
     format: 'es',
   },
   server: {
-    allowedHosts: ['dev.linkto.host'],
+    // 个人本地项目：允许手机/局域网通过 IP 访问开发服务器，关闭 host 校验
+    allowedHosts: true,
   },
   base: './',
   build: {
