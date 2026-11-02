@@ -2,6 +2,7 @@
  * Sender page — text/file input, live QR playback, and GIF export.
  */
 import { useState, useCallback, useEffect, useRef } from 'preact/hooks';
+import { t, useLang } from '@/lib/i18n';
 import type { EccLevel } from '@raptorqr/core/qr/qr_encode';
 import {
   DEFAULT_QR_ENCODER,
@@ -273,6 +274,7 @@ const S = {
 // ─── Component ───────────────────────────────────────────────────────────────────
 
 export function SenderPage() {
+  useLang();
   const [mode, setMode] = useState<InputMode>('file');
   const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -561,8 +563,7 @@ export function SenderPage() {
       if (!playbackStartedRef.current) {
         playbackStartedRef.current = true;
         setStatus(
-          `Live QR running (${transfer.packets.length} packets, ` +
-          `${transfer.parallelCount} per tick).`,
+          t('sender.status.running', { packets: transfer.packets.length, parallel: transfer.parallelCount }),
         );
       }
 
@@ -646,7 +647,7 @@ export function SenderPage() {
     const pool = new QrWorkerPool(liveTransfer.parallelCount);
     qrRenderPoolRef.current = pool;
 
-    setStatus('Rendering first QR frame…');
+    setStatus(t('sender.status.renderFirst'));
 
     requestRenderWindow(liveTransfer, 0);
     startLivePlayback(true);
@@ -700,7 +701,7 @@ export function SenderPage() {
 
   const handleStopTransfer = useCallback(() => {
     resetOutput();
-    setStatus('Stopped.');
+    setStatus(t('sender.status.stopped'));
   }, [resetOutput]);
 
   const handleModeChange = useCallback((newMode: InputMode) => {
@@ -779,12 +780,12 @@ export function SenderPage() {
 
     if (mode === 'text') {
       const trimmed = text.trim();
-      if (!trimmed) { setError('Please enter some text.'); return; }
+      if (!trimmed) { setError(t('sender.err.noText')); return; }
       data = new TextEncoder().encode(trimmed).buffer as ArrayBuffer;
       isText = true;
     } else {
-      if (!file) { setError('Please select a file.'); return; }
-      if (file.size > 8 * 1024 * 1024) { setError('File too large. Maximum size is 8 MB.'); return; }
+      if (!file) { setError(t('sender.err.noFile')); return; }
+      if (file.size > 8 * 1024 * 1024) { setError(t('sender.err.fileTooLarge')); return; }
       data = await file.arrayBuffer();
       isText = false;
     }
@@ -793,7 +794,7 @@ export function SenderPage() {
     const selectedQRProfile = createQRTransferProfile(qrVersion, eccLevel, qrEncoder);
 
     setEncodingLive(true);
-    setStatus('Encoding live QR…');
+    setStatus(t('sender.encoding'));
 
     let encodeWorker: Worker | null = null;
 
@@ -862,9 +863,7 @@ export function SenderPage() {
         encoded.repairPacketIndices,
       );
       setLiveTransfer(nextLiveTransfer);
-      setStatus(
-        `Encoded ${encoded.stats.frameCount} packets. Rendering first QR frame…`,
-      );
+      setStatus(t('sender.status.encoded', { n: encoded.stats.frameCount }));
     } catch (err: any) {
       if (runId === runIdRef.current) {
         setError(err.message ?? String(err));
@@ -897,7 +896,7 @@ export function SenderPage() {
   const handlePrepareGif = useCallback(async () => {
     const transfer = liveTransferRef.current;
     if (!transfer) {
-      setError('Start a live QR transfer before preparing a GIF.');
+      setError(t('sender.err.gifBeforeLive'));
       return;
     }
 
@@ -905,7 +904,7 @@ export function SenderPage() {
     setPreparingGif(true);
     setGifResult(null);
     setError('');
-    setStatus('Preparing GIF export…');
+    setStatus(t('sender.preparingGif'));
 
     let gifWorker: Worker | null = null;
 
@@ -955,7 +954,7 @@ export function SenderPage() {
       if (runId !== runIdRef.current) return;
 
       setGifResult(gif);
-      setStatus('GIF ready.');
+      setStatus(t('sender.status.gifReady'));
     } catch (err: any) {
       if (runId === runIdRef.current) {
         setError(err.message ?? String(err));
@@ -995,13 +994,13 @@ export function SenderPage() {
       }
 
       if (!stage.requestFullscreen) {
-        setError('Fullscreen is not supported in this browser.');
+        setError(t('sender.err.fullscreenUnsupported'));
         return;
       }
 
       await stage.requestFullscreen();
     } catch (err: any) {
-      setError(`Fullscreen error: ${err.message ?? String(err)}`);
+      setError(t('sender.err.fullscreen', { msg: err.message ?? String(err) }));
     }
   }, []);
 
@@ -1016,17 +1015,17 @@ export function SenderPage() {
       {/* ── Input mode toggle ───────────────────────────────────────────────── */}
       <div style={S.section}>
         <div style={S.row}>
-          <span style={S.label}>Input mode</span>
+          <span style={S.label}>{t('sender.input.mode')}</span>
           <div style={S.toggleGroup}>
-            <button style={S.toggleBtn(mode === 'file')} onClick={() => handleModeChange('file')}>File</button>
-            <button style={S.toggleBtn(mode === 'text')} onClick={() => handleModeChange('text')}>Text</button>
+            <button style={S.toggleBtn(mode === 'file')} onClick={() => handleModeChange('file')}>{t('sender.input.file')}</button>
+            <button style={S.toggleBtn(mode === 'text')} onClick={() => handleModeChange('text')}>{t('sender.input.text')}</button>
           </div>
         </div>
 
         {mode === 'text' ? (
           <textarea
             style={{ ...S.textarea, marginTop: 10 }}
-            placeholder="Type or paste text to transfer…"
+            placeholder={t('sender.input.placeholder')}
             value={text}
             onInput={(e) => handleTextChange((e.target as HTMLTextAreaElement).value)}
           />
@@ -1044,10 +1043,10 @@ export function SenderPage() {
               disabled={encodingLive}
               onClick={handleChooseFile}
             >
-              Choose file
+              {t('sender.input.chooseFile')}
             </button>
             <span style={S.fileName} title={file?.name ?? ''}>
-              {file ? `${file.name} · ${formatBytes(file.size)}` : 'No file selected'}
+              {file ? `${file.name} · ${formatBytes(file.size)}` : t('sender.input.noFile')}
             </span>
           </div>
         )}
@@ -1057,7 +1056,7 @@ export function SenderPage() {
       <div style={S.section}>
         <div style={{ marginBottom: 16 }}>
           <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>QR size</span>
+            <span style={S.label}>{t('sender.size')}</span>
             <span style={S.infoValue}>{qrProfile.maxPayloadSize} B/frame</span>
           </div>
           <select
@@ -1078,7 +1077,7 @@ export function SenderPage() {
         </div>
         <div style={{ marginBottom: 16 }}>
           <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>QR ECC</span>
+            <span style={S.label}>{t('sender.ecc')}</span>
             <span style={S.infoValue}>{eccLevel}</span>
           </div>
           <select
@@ -1103,13 +1102,13 @@ export function SenderPage() {
             style={S.btnSecondary}
             onClick={() => setAdvancedGenerateOpen((open) => !open)}
           >
-            {advancedGenerateOpen ? 'Hide advanced settings' : 'Advanced settings'}
+            {advancedGenerateOpen ? t('sender.advanced.hide') : t('sender.advanced.show')}
           </button>
           {advancedGenerateOpen && (
             <div style={{ marginTop: 14, display: 'grid', gap: 16 }}>
               <label>
                 <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={S.label}>QR encoder</span>
+                  <span style={S.label}>{t('sender.encoder')}</span>
                   <span style={S.infoValue}>{formatQREncoder(qrEncoder)}</span>
                 </div>
                 <select
@@ -1127,7 +1126,7 @@ export function SenderPage() {
               </label>
               <label>
                 <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={S.label}>FEC codec</span>
+                  <span style={S.label}>{t('sender.fec')}</span>
                   <span style={S.infoValue}>{formatFecCodec(fecCodec)}</span>
                 </div>
                 <select
@@ -1147,7 +1146,7 @@ export function SenderPage() {
                 <>
                   <label>
                     <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={S.label}>RaptorQ repair</span>
+                      <span style={S.label}>{t('sender.raptorq.repair')}</span>
                       <span style={S.infoValue}>{raptorqRepairPercent}%</span>
                     </div>
                     <input
@@ -1161,13 +1160,13 @@ export function SenderPage() {
                       onInput={(e) => handleRaptorQRepairPercentChange((e.target as HTMLInputElement).value)}
                     />
                     <div style={S.sliderLabels}>
-                      <span>Less QR</span>
-                      <span>More repair</span>
+                      <span>{t('sender.raptorq.repair.less')}</span>
+                      <span>{t('sender.raptorq.repair.more')}</span>
                     </div>
                   </label>
                   <label>
                     <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={S.label}>RaptorQ playback</span>
+                      <span style={S.label}>{t('sender.raptorq.playback')}</span>
                       <span style={S.infoValue}>{formatRaptorQPlaybackStrategy(raptorqPlaybackStrategy)}</span>
                     </div>
                     <select
@@ -1190,7 +1189,7 @@ export function SenderPage() {
         </div>
         <div style={{ marginBottom: 16 }}>
           <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>QR speed</span>
+            <span style={S.label}>{t('sender.speed')}</span>
             <span style={S.infoValue}>{frameRateFps} fps · {formatDelayMs(frameDelayMs)} ms/frame</span>
           </div>
           <input
@@ -1203,13 +1202,13 @@ export function SenderPage() {
             onInput={(e) => handleFrameRateChange((e.target as HTMLInputElement).value)}
           />
           <div style={S.sliderLabels}>
-            <span>Stable</span>
-            <span>Fast</span>
+            <span>{t('sender.speed.stable')}</span>
+            <span>{t('sender.speed.fast')}</span>
           </div>
         </div>
         <div style={{ marginBottom: 16 }}>
           <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>Parallel QR</span>
+            <span style={S.label}>{t('sender.parallel')}</span>
             <span style={S.infoValue}>{parallelQRCount} per tick</span>
           </div>
           <select
@@ -1220,14 +1219,13 @@ export function SenderPage() {
           >
             {PARALLEL_QR_COUNTS.map((count) => (
               <option key={count} value={count}>
-                {count} QR{count === 1 ? '' : 's'} per tick
+                {t('sender.parallel.perTick', { count })}
               </option>
             ))}
           </select>
           {parallelQRCount > 4 && (
             <div style={S.warn}>
-              Receiver Auto (4) scans up to 4 QR codes per frame. For {parallelQRCount} parallel QR,
-              set Receiver advanced settings - Max symbols to {parallelQRCount}.
+              {t('sender.warn.parallel', { n: parallelQRCount })}
             </div>
           )}
         </div>
@@ -1240,15 +1238,15 @@ export function SenderPage() {
             {encodingLive ? (
               <>
                 <span style={S.spinner} />
-                Encoding live QR…
+                {t('sender.encoding')}
               </>
             ) : (
-              'Start Live QR'
+              t('sender.start')
             )}
           </button>
           {(liveTransfer || preparingGif) && (
             <button style={S.btnSecondary} onClick={handleStopTransfer}>
-              Stop
+              {t('sender.stop')}
             </button>
           )}
         </div>
@@ -1259,7 +1257,7 @@ export function SenderPage() {
       {/* ── Preview ──────────────────────────────────────────────────────────── */}
       {liveTransfer && (
         <div style={S.section}>
-          <div style={S.label}>Live QR Transfer</div>
+          <div style={S.label}>{t('sender.live.title')}</div>
           <div ref={qrStageRef} style={S.qrStage(fullscreenActive)}>
             <canvas
               className="qr-live-canvas"
@@ -1272,10 +1270,10 @@ export function SenderPage() {
           </div>
           <div style={{ ...S.row, marginTop: 8 }}>
             <button style={S.btnSecondary} onClick={handleFullscreenPlayback}>
-              Fullscreen QR
+              {t('sender.fullscreen')}
             </button>
             <button style={S.btnSecondary} onClick={handleStopTransfer}>
-              Stop
+              {t('sender.stop')}
             </button>
             <button
               style={preparingGif ? { ...S.btnSecondary, opacity: 0.6, cursor: 'not-allowed' } : S.btnSecondary}
@@ -1285,15 +1283,15 @@ export function SenderPage() {
               {preparingGif ? (
                 <>
                   <span style={S.spinner} />
-                  Preparing GIF…
+                  {t('sender.preparingGif')}
                 </>
               ) : (
-                'Prepare GIF'
+                t('sender.prepareGif')
               )}
             </button>
             {gifResult && (
               <button style={S.btn} onClick={handleDownload}>
-                Download GIF ({Math.round(gifResult.gifData.byteLength / 1024)} KB)
+                {t('sender.downloadGif', { kb: Math.round(gifResult.gifData.byteLength / 1024) })}
               </button>
             )}
           </div>
@@ -1303,54 +1301,54 @@ export function SenderPage() {
       {/* ── Stats ────────────────────────────────────────────────────────────── */}
       {stats && (
         <div style={S.section}>
-          <div style={S.label}>Transfer Info</div>
+          <div style={S.label}>{t('sender.info.title')}</div>
           <div style={S.infoGrid}>
-            <span style={S.infoLabel}>Original size</span>
+            <span style={S.infoLabel}>{t('sender.info.original')}</span>
             <span style={S.infoValue}>{formatBytes(stats.originalSize)}</span>
-            <span style={S.infoLabel}>Preprocessed size</span>
+            <span style={S.infoLabel}>{t('sender.info.preprocessed')}</span>
             <span style={S.infoValue}>{formatBytes(stats.preprocessedSize)}</span>
-            <span style={S.infoLabel}>QR size</span>
+            <span style={S.infoLabel}>{t('sender.info.qrVersion')}</span>
             <span style={S.infoValue}>{liveTransfer ? `V${liveTransfer.version}-${liveTransfer.eccLevel}` : qrProfile.label}</span>
-            <span style={S.infoLabel}>QR encoder</span>
+            <span style={S.infoLabel}>{t('sender.info.encoder')}</span>
             <span style={S.infoValue}>{formatQREncoder(stats.qrEncoder)}</span>
-            <span style={S.infoLabel}>Symbol payload</span>
+            <span style={S.infoLabel}>{t('sender.info.payload')}</span>
             <span style={S.infoValue}>{liveTransfer ? `${liveTransfer.symbolSize} B/frame` : `${qrProfile.maxPayloadSize} B/frame`}</span>
-            <span style={S.infoLabel}>FEC codec</span>
+            <span style={S.infoLabel}>{t('sender.info.fec')}</span>
             <span style={S.infoValue}>
               {stats.fecCodec === 'wasm-raptorq'
                 ? `${formatFecCodec(stats.fecCodec)} · ${stats.raptorqRepairPercent}% repair`
                 : formatFecCodec(stats.fecCodec)}
             </span>
-            <span style={S.infoLabel}>RaptorQ playback</span>
+            <span style={S.infoLabel}>{t('sender.info.playback')}</span>
             <span style={S.infoValue}>
               {stats.raptorqPlaybackStrategy
                 ? formatRaptorQPlaybackStrategy(stats.raptorqPlaybackStrategy)
-                : 'Not applicable (JS RLNC)'}
+                : t('sender.info.notApplicable')}
             </span>
-            <span style={S.infoLabel}>QR packets</span>
+            <span style={S.infoLabel}>{t('sender.info.packets')}</span>
             <span style={S.infoValue}>{stats.frameCount}</span>
-            <span style={S.infoLabel}>Parallel QR</span>
+            <span style={S.infoLabel}>{t('sender.info.parallel')}</span>
             <span style={S.infoValue}>{liveTransfer ? `${liveTransfer.parallelCount} per tick` : `${parallelQRCount} per tick`}</span>
-            <span style={S.infoLabel}>Live speed</span>
+            <span style={S.infoLabel}>{t('sender.info.liveSpeed')}</span>
             <span style={S.infoValue}>{frameRateFps} fps ({formatDelayMs(frameDelayMs)} ms)</span>
-            <span style={S.infoLabel}>Actual live fps</span>
+            <span style={S.infoLabel}>{t('sender.info.actualFps')}</span>
             <span style={S.infoValue}>
               {liveTransfer
                 ? `${actualLiveFps.toFixed(1)} fps · ${(actualLiveFps * liveTransfer.parallelCount).toFixed(1)} QR/s`
-                : 'Not running'}
+                : t('sender.info.notRunning')}
             </span>
-            <span style={S.infoLabel}>QR render cache</span>
+            <span style={S.infoLabel}>{t('sender.info.renderCache')}</span>
             <span style={S.infoValue}>
               {liveTransfer
                 ? `${renderReadyPackets} ready · ${renderPendingPackets} pending`
-                : 'Not running'}
+                : t('sender.info.notRunning')}
             </span>
-            <span style={S.infoLabel}>GIF export speed</span>
-            <span style={S.infoValue}>{gifResult ? `${gifResult.frameRateFps} fps (${formatDelayMs(gifResult.frameDelayMs)} ms)` : preparingGif ? 'Preparing…' : 'Not prepared'}</span>
-            <span style={S.infoLabel}>{stats.fecCodec === 'wasm-raptorq' ? 'RaptorQ packets' : 'Generations'}</span>
+            <span style={S.infoLabel}>{t('sender.info.gifSpeed')}</span>
+            <span style={S.infoValue}>{gifResult ? `${gifResult.frameRateFps} fps (${formatDelayMs(gifResult.frameDelayMs)} ms)` : preparingGif ? t('sender.info.preparing') : t('sender.info.notPrepared')}</span>
+            <span style={S.infoLabel}>{stats.fecCodec === 'wasm-raptorq' ? t('sender.info.raptorqPackets') : t('sender.info.generations')}</span>
             <span style={S.infoValue}>{stats.totalGenerations}</span>
-            <span style={S.infoLabel}>GIF size</span>
-            <span style={S.infoValue}>{gifResult ? formatBytes(gifResult.gifData.byteLength) : preparingGif ? '…' : 'Not prepared'}</span>
+            <span style={S.infoLabel}>{t('sender.info.gifSize')}</span>
+            <span style={S.infoValue}>{gifResult ? formatBytes(gifResult.gifData.byteLength) : preparingGif ? '…' : t('sender.info.notPrepared')}</span>
           </div>
         </div>
       )}

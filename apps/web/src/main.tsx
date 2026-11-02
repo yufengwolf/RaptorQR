@@ -10,6 +10,7 @@ import {
   registerServiceWorker,
   type PreloadProgress,
 } from '@/pwa/preload';
+import { t } from '@/lib/i18n';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');
@@ -17,7 +18,7 @@ if (!root) throw new Error('Missing #root element');
 const initialProgress: PreloadProgress = {
   completed: 0,
   total: 0,
-  currentLabel: 'runtime',
+  currentLabel: t('boot.runtime'),
 };
 
 function Root() {

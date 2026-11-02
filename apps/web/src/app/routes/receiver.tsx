@@ -3,6 +3,7 @@
  * file download, and text display.
  */
 import { useState, useCallback, useRef, useEffect } from 'preact/hooks';
+import { t, useLang } from '@/lib/i18n';
 import { parseGif, renderGifFrame } from '@raptorqr/core/gif/gif_parser';
 import {
   BINARIZER_OPTIONS,
@@ -217,6 +218,7 @@ const S = {
 // ─── Component ───────────────────────────────────────────────────────────────────
 
 export function ReceiverPage() {
+  useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -373,7 +375,7 @@ export function ReceiverPage() {
           if (bytes > 0 && elapsed > 0) {
             setThroughputKbps((bytes / 1024) / (elapsed / 1000));
           }
-          setStatus('Complete ✓');
+          setStatus(t('receiver.complete'));
 
           // Auto-stop scanning if requested by worker
           if (msg.autoStop) {
@@ -400,7 +402,7 @@ export function ReceiverPage() {
     };
 
     w.onerror = (err) => {
-      setError(`Worker error: ${err.message}`);
+      setError(t('receiver.err.worker', { msg: err.message }));
     };
 
     return w;
@@ -526,7 +528,7 @@ export function ReceiverPage() {
 
       setScanning(true);
       scanningRef.current = true;
-      setStatus('Scanning…');
+      setStatus(t('receiver.scanning'));
 
       let lastCapture = 0;
       const loop = (time: number) => {
@@ -539,7 +541,7 @@ export function ReceiverPage() {
       };
       animRef.current = requestAnimationFrame(loop);
     } catch (err: any) {
-      setError(`Camera error: ${err.message ?? String(err)}`);
+      setError(t('receiver.err.camera', { msg: err.message ?? String(err) }));
     }
   }, []);
 
@@ -583,7 +585,7 @@ export function ReceiverPage() {
 
     setScanning(true);
     scanningRef.current = true;
-    setStatus('Parsing GIF frames…');
+    setStatus(t('receiver.parsingGif'));
 
     try {
       const buffer = await file.arrayBuffer();
@@ -591,11 +593,11 @@ export function ReceiverPage() {
       const gifData = parseGif(bytes);
 
       if (gifData.frames.length === 0) {
-        setError('No frames found in GIF');
+        setError(t('receiver.err.noFrames'));
         return;
       }
 
-      setStatus(`Processing ${gifData.frames.length} frames…`);
+      setStatus(t('receiver.processingFrames', { n: gifData.frames.length }));
 
       for (let i = 0; i < gifData.frames.length; i++) {
         if (!scanningRef.current) break;
@@ -607,9 +609,9 @@ export function ReceiverPage() {
         );
       }
 
-      setStatus('GIF processed');
+      setStatus(t('receiver.gifProcessed'));
     } catch (err: any) {
-      setError(`GIF error: ${err.message ?? String(err)}`);
+      setError(t('receiver.err.gif', { msg: err.message ?? String(err) }));
     } finally {
       scanningRef.current = false;
       setScanning(false);
@@ -634,7 +636,7 @@ export function ReceiverPage() {
       workerRef.current.terminate();
       workerRef.current = null;
     }
-    setStatus('Stopped');
+    setStatus(t('receiver.stopped'));
     setHasZoomSupport(false);
     setZoomLevel(1);
   }, []);
@@ -714,7 +716,7 @@ export function ReceiverPage() {
         copyResetTimerRef.current = null;
       }, 1500);
     } catch (err: any) {
-      setError(`Copy failed: ${err.message ?? String(err)}`);
+      setError(t('receiver.err.copyFailed', { msg: err.message ?? String(err) }));
     }
   }, [receivedText]);
 
@@ -739,19 +741,19 @@ export function ReceiverPage() {
     <div>
       {/* ── Input mode toggle ─────────────────────────────────────────────────────── */}
       <div style={S.section}>
-        <div style={S.label}>Input Mode</div>
+        <div style={S.label}>{t('receiver.input.mode')}</div>
         <div style={S.toggleGroup}>
           <button
             style={S.toggleBtn(inputMode === 'camera')}
             onClick={() => { stopScanning(); setInputMode('camera'); }}
           >
-            📷 Camera
+            📷 {t('receiver.input.camera')}
           </button>
           <button
             style={S.toggleBtn(inputMode === 'gif-file')}
             onClick={() => { stopScanning(); setInputMode('gif-file'); }}
           >
-            🎞️ GIF File
+            🎞️ {t('receiver.input.gif')}
           </button>
         </div>
       </div>
@@ -759,7 +761,7 @@ export function ReceiverPage() {
       <div style={S.section}>
         <div style={{ marginBottom: 12 }}>
           <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>FEC codec</span>
+            <span style={S.label}>{t('receiver.fec')}</span>
             <span style={S.statValue}>{formatFecCodec(fecCodec)}</span>
           </div>
           <select
@@ -776,7 +778,7 @@ export function ReceiverPage() {
         </div>
         <div style={{ marginBottom: 12 }}>
           <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>Decode preset</span>
+            <span style={S.label}>{t('receiver.decodePreset')}</span>
             <span style={S.statValue}>{formatDecodePreset(decodePreset)}</span>
           </div>
           <select
@@ -796,12 +798,12 @@ export function ReceiverPage() {
           style={S.btnSecondary}
           onClick={() => setAdvancedDecodeOpen((open) => !open)}
         >
-          {advancedDecodeOpen ? 'Hide advanced settings' : 'Advanced settings'}
+          {advancedDecodeOpen ? t('receiver.advanced.hide') : t('receiver.advanced.show')}
         </button>
         {advancedDecodeOpen && (
           <div style={{ marginTop: 14, display: 'grid', gap: 12 }}>
             <label>
-              <span style={S.label}>Max symbols</span>
+              <span style={S.label}>{t('receiver.maxSymbols')}</span>
               <select
                 value={String(decodeSettings.maxSymbols)}
                 style={S.select}
@@ -820,7 +822,7 @@ export function ReceiverPage() {
               </select>
             </label>
             <label>
-              <span style={S.label}>Binarizer</span>
+              <span style={S.label}>{t('receiver.binarizer')}</span>
               <select
                 value={decodeSettings.binarizer}
                 style={S.select}
@@ -873,7 +875,7 @@ export function ReceiverPage() {
               </label>
             </div>
             <label>
-              <span style={S.label}>Downscale factor</span>
+              <span style={S.label}>{t('receiver.downscaleFactor')}</span>
               <select
                 value={String(decodeSettings.downscaleFactor)}
                 style={S.select}
@@ -899,10 +901,10 @@ export function ReceiverPage() {
       {/* ── Camera preview ────────────────────────────────────────────────── */}
       {inputMode === 'camera' && (
         <div style={S.section}>
-          <div style={S.label}>Camera</div>
+          <div style={S.label}>{t('receiver.camera')}</div>
           <div style={{ marginBottom: 14 }}>
             <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={S.label}>Scan rate</span>
+              <span style={S.label}>{t('receiver.scanRate')}</span>
               <span style={S.statValue}>{scanRateFps} fps · {formatDelayMs(scanIntervalMs)} ms/sample</span>
             </div>
             <input
@@ -915,8 +917,8 @@ export function ReceiverPage() {
               onInput={(e) => handleScanRateChange((e.target as HTMLInputElement).value)}
             />
             <div style={S.sliderLabels}>
-              <span>Stable</span>
-              <span>Fast</span>
+              <span>{t('receiver.scanRate.stable')}</span>
+              <span>{t('receiver.scanRate.fast')}</span>
             </div>
           </div>
           <div
@@ -946,62 +948,62 @@ export function ReceiverPage() {
           {scanning && (
             <div style={S.statsBar}>
               <span>
-                decoded{' '}
+                {t('receiver.stat.decoded')}{' '}
                 <span style={S.statValue}>
                   {framesWithQR}
                 </span>
               </span>
               <span>
-                unique <span style={S.statValue}>{uniquePackets}</span>
+                {t('receiver.stat.unique')} <span style={S.statValue}>{uniquePackets}</span>
               </span>
               <span>
-                useful <span style={S.statValue}>{acceptedPackets}/{neededPackets || '?'}</span>
+                {t('receiver.stat.useful')} <span style={S.statValue}>{acceptedPackets}/{neededPackets || '?'}</span>
               </span>
               {duplicatePackets > 0 && (
                 <span>
-                  dupes <span style={S.statValue}>{duplicatePackets}</span>
+                  {t('receiver.stat.dupes')} <span style={S.statValue}>{duplicatePackets}</span>
                 </span>
               )}
               <span>
-                gens <span style={S.statValue}>{solvedGens}/{sourceGens}</span>
+                {t('receiver.stat.gens')} <span style={S.statValue}>{solvedGens}/{sourceGens}</span>
               </span>
               <span>
-                QR <span style={S.statValue}>{formatDetectedQR(detectedQrVersion, detectedSymbolSize)}</span>
+                {t('receiver.stat.qr')} <span style={S.statValue}>{formatDetectedQR(detectedQrVersion, detectedSymbolSize)}</span>
               </span>
               {detectedFecCodec && (
                 <span>
-                  FEC <span style={S.statValue}>{formatDetectedFecCodec(detectedFecCodec)}</span>
+                  {t('receiver.stat.fec')} <span style={S.statValue}>{formatDetectedFecCodec(detectedFecCodec)}</span>
                 </span>
               )}
               <span>
-                decode <span style={S.statValue}>{decodedQrPerSecond.toFixed(1)} QR/s</span>
+                {t('receiver.stat.decode')} <span style={S.statValue}>{decodedQrPerSecond.toFixed(1)} QR/s</span>
               </span>
               <span>
-                time <span style={S.statValue}>{formatDuration(elapsedMs)}</span>
+                {t('receiver.stat.time')} <span style={S.statValue}>{formatDuration(elapsedMs)}</span>
               </span>
               {throughputKbps > 0 && (
                 <span>
-                  speed <span style={S.statValue}>{throughputKbps.toFixed(1)} KB/s</span>
+                  {t('receiver.stat.speed')} <span style={S.statValue}>{throughputKbps.toFixed(1)} KB/s</span>
                 </span>
               )}
               <span>·</span>
-              <span>{status || 'Working…'}</span>
+              <span>{status || t('receiver.stat.working')}</span>
             </div>
           )}
 
           <div style={{ ...S.row, marginTop: 10 }}>
             {!scanning ? (
               <button style={S.btn} onClick={startCameraScanning}>
-                ▶ Start Scan
+                ▶ {t('receiver.startScan')}
               </button>
             ) : (
               <button style={S.btnStop} onClick={stopScanning}>
-                ■ Stop Scan
+                ■ {t('receiver.stopScan')}
               </button>
             )}
             {hasZoomSupport && scanning && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12, color: '#8b949e' }}>Zoom:</span>
+                <span style={{ fontSize: 12, color: '#8b949e' }}>{t('receiver.zoom')}</span>
                 <input
                   type="range"
                   min={1}
@@ -1017,8 +1019,8 @@ export function ReceiverPage() {
           </div>
           <p style={{ fontSize: 12, color: '#8b949e', marginTop: 6 }}>
             {hasZoomSupport
-              ? 'Full-frame scan is active. Use Zoom only if the QR codes are too small.'
-              : 'Full-frame scan is active.'}
+              ? t('receiver.hint.zoom')
+              : t('receiver.hint.noZoom')}
           </p>
           {error && <div style={S.warn}>⚠ {error}</div>}
         </div>
@@ -1027,9 +1029,9 @@ export function ReceiverPage() {
       {/* ── GIF file upload ────────────────────────────────────────────────────────────── */}
       {inputMode === 'gif-file' && (
         <div style={S.section}>
-          <div style={S.label}>Upload GIF</div>
+          <div style={S.label}>{t('receiver.uploadGif')}</div>
           <p style={{ fontSize: 13, color: '#8b949e', marginBottom: 8 }}>
-            Upload a RaptorQR file generated by the Sender.
+            {t('receiver.uploadGif.desc')}
           </p>
           <div style={S.row}>
             <input
@@ -1045,55 +1047,55 @@ export function ReceiverPage() {
               disabled={scanning}
               onClick={handleChooseGifFile}
             >
-              Choose GIF
+              {t('receiver.chooseGif')}
             </button>
             <span style={S.fileName} title={gifFileName}>
-              {scanning ? 'Processing GIF…' : gifFileName || 'No GIF selected'}
+              {scanning ? t('receiver.processingGif') : gifFileName || t('receiver.noGif')}
             </span>
           </div>
           {scanning && (
             <div style={S.statsBar}>
               <span>
-                decoded{' '}
+                {t('receiver.stat.decoded')}{' '}
                 <span style={S.statValue}>
                   {framesWithQR}
                 </span>
               </span>
               <span>
-                unique <span style={S.statValue}>{uniquePackets}</span>
+                {t('receiver.stat.unique')} <span style={S.statValue}>{uniquePackets}</span>
               </span>
               <span>
-                useful <span style={S.statValue}>{acceptedPackets}/{neededPackets || '?'}</span>
+                {t('receiver.stat.useful')} <span style={S.statValue}>{acceptedPackets}/{neededPackets || '?'}</span>
               </span>
               {duplicatePackets > 0 && (
                 <span>
-                  dupes <span style={S.statValue}>{duplicatePackets}</span>
+                  {t('receiver.stat.dupes')} <span style={S.statValue}>{duplicatePackets}</span>
                 </span>
               )}
               <span>
-                gens <span style={S.statValue}>{solvedGens}/{sourceGens}</span>
+                {t('receiver.stat.gens')} <span style={S.statValue}>{solvedGens}/{sourceGens}</span>
               </span>
               <span>
-                QR <span style={S.statValue}>{formatDetectedQR(detectedQrVersion, detectedSymbolSize)}</span>
+                {t('receiver.stat.qr')} <span style={S.statValue}>{formatDetectedQR(detectedQrVersion, detectedSymbolSize)}</span>
               </span>
               {detectedFecCodec && (
                 <span>
-                  FEC <span style={S.statValue}>{formatDetectedFecCodec(detectedFecCodec)}</span>
+                  {t('receiver.stat.fec')} <span style={S.statValue}>{formatDetectedFecCodec(detectedFecCodec)}</span>
                 </span>
               )}
               <span>
-                decode <span style={S.statValue}>{decodedQrPerSecond.toFixed(1)} QR/s</span>
+                {t('receiver.stat.decode')} <span style={S.statValue}>{decodedQrPerSecond.toFixed(1)} QR/s</span>
               </span>
               <span>
-                time <span style={S.statValue}>{formatDuration(elapsedMs)}</span>
+                {t('receiver.stat.time')} <span style={S.statValue}>{formatDuration(elapsedMs)}</span>
               </span>
               {throughputKbps > 0 && (
                 <span>
-                  speed <span style={S.statValue}>{throughputKbps.toFixed(1)} KB/s</span>
+                  {t('receiver.stat.speed')} <span style={S.statValue}>{throughputKbps.toFixed(1)} KB/s</span>
                 </span>
               )}
               <span>·</span>
-              <span>{status || 'Working…'}</span>
+              <span>{status || t('receiver.stat.working')}</span>
             </div>
           )}
           {error && <div style={{ ...S.warn, marginTop: 8 }}>⚠ {error}</div>}
@@ -1103,15 +1105,15 @@ export function ReceiverPage() {
       {/* ── Persistent transfer summary (visible even after scanning stops) ── */}
       {(elapsedMs > 0 || throughputKbps > 0) && !scanning && (
         <div style={{ ...S.section, padding: '10px 20px', fontSize: 13, color: '#8b949e' }}>
-          Transfer complete —{' '}
+          {t('receiver.transferComplete')}{' '}
           <span style={S.statValue}>{formatDuration(elapsedMs)}</span>
           {throughputKbps > 0 && (
             <span>
-              {' '}·{' '}avg <span style={S.statValue}>{throughputKbps.toFixed(1)} KB/s</span>
+              {' '}·{' '}{t('receiver.avg')} <span style={S.statValue}>{throughputKbps.toFixed(1)} KB/s</span>
             </span>
           )}
           <span>
-            {' '}·{' '}data{' '}
+            {' '}·{' '}{t('receiver.data')}{' '}
             <span style={S.statValue}>
               {formatBytes(
                 dataLengthRef.current ||
@@ -1126,13 +1128,13 @@ export function ReceiverPage() {
       {receivedText && (
         <div style={S.section} ref={textResultRef}>
           <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div style={{ ...S.label, marginBottom: 0 }}>Recovered Text</div>
+            <div style={{ ...S.label, marginBottom: 0 }}>{t('receiver.recoveredText')}</div>
             <button
               type="button"
               style={S.btnSecondary}
               onClick={handleCopyRecoveredText}
             >
-              {textCopied ? 'Copied' : 'Copy text'}
+              {textCopied ? t('receiver.copied') : t('receiver.copyText')}
             </button>
           </div>
           <textarea
@@ -1146,14 +1148,14 @@ export function ReceiverPage() {
       {/* ── Download recovered file ────────────────────────────────────────────────── */}
       {receivedFile && (
         <div style={S.section} ref={fileResultRef}>
-          <div style={S.label}>Recovered File</div>
+          <div style={S.label}>{t('receiver.recoveredFile')}</div>
           <p style={{ margin: '6px 0', fontSize: 14 }}>
-            <strong>File:</strong> {receivedFile.filename || '(unnamed)'} &middot;{' '}
+            <strong>{t('receiver.file')}</strong> {receivedFile.filename || '(unnamed)'} &middot;{' '}
             {formatBytes(receivedFile.data.byteLength)} &middot;{' '}
             {receivedFile.mime}
           </p>
           <button style={S.btn} onClick={handleDownload}>
-            ⸗ Download Recovered File
+            ⸗ {t('receiver.downloadRecovered')}
           </button>
         </div>
       )}
@@ -1266,7 +1268,7 @@ function parseDownscaleFactor(value: string): DownscaleFactor {
 
 function getCameraUnavailableMessage(): string {
   if (!window.isSecureContext) {
-    return 'Camera API is unavailable because this page is not in a secure context. Use HTTPS, localhost, or upload a GIF instead.';
+    return t('receiver.err.cameraSecure');
   }
-  return 'Camera API is unavailable in this browser. Try a recent Chrome/Safari/Edge browser, or upload a GIF instead.';
+  return t('receiver.err.cameraBrowser');
 }

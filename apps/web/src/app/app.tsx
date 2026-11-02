@@ -2,6 +2,7 @@
  * App shell — top-level layout with hash-based tab navigation.
  */
 import { useState, useEffect } from 'preact/hooks';
+import { t, setLang, useLang } from '@/lib/i18n';
 import { SenderPage } from '@/app/routes/sender';
 import { ReceiverPage } from '@/app/routes/receiver';
 
@@ -57,6 +58,28 @@ const styles: Record<string, Record<string, string | number>> = {
     background: '#1f2937',
     color: '#f0f6fc',
   },
+  langToggle: {
+    display: 'flex',
+    gap: 4,
+    marginLeft: 'auto',
+    background: '#0d1117',
+    borderRadius: 6,
+    padding: 2,
+  },
+  langBtn: {
+    padding: '4px 10px',
+    borderRadius: 4,
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+    background: 'transparent',
+    color: '#8b949e',
+  },
+  langActive: {
+    background: '#1f2937',
+    color: '#f0f6fc',
+  },
   main: {
     flex: 1,
     padding: '24px',
@@ -69,6 +92,7 @@ const styles: Record<string, Record<string, string | number>> = {
 
 export function App() {
   const [tab, setTab] = useState<Tab>(getTabFromHash);
+  const lang = useLang();
 
   useEffect(() => {
     const onHashChange = () => setTab(getTabFromHash());
@@ -90,15 +114,29 @@ export function App() {
             style={{ ...styles.tab, ...(tab === 'sender' ? styles.tabActive : {}) }}
             onClick={() => navigate('sender')}
           >
-            📤 Sender
+            📤 {t('app.nav.sender')}
           </button>
           <button
             style={{ ...styles.tab, ...(tab === 'receiver' ? styles.tabActive : {}) }}
             onClick={() => navigate('receiver')}
           >
-            📥 Receiver
+            📥 {t('app.nav.receiver')}
           </button>
         </nav>
+        <span style={styles.langToggle}>
+          <button
+            style={{ ...styles.langBtn, ...(lang === 'zh' ? styles.langActive : {}) }}
+            onClick={() => setLang('zh')}
+          >
+            中
+          </button>
+          <button
+            style={{ ...styles.langBtn, ...(lang === 'en' ? styles.langActive : {}) }}
+            onClick={() => setLang('en')}
+          >
+            EN
+          </button>
+        </span>
       </header>
       <main style={styles.main}>
         {tab === 'sender' ? <SenderPage /> : <ReceiverPage />}

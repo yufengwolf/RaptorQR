@@ -1,4 +1,5 @@
 import type { PreloadProgress } from './preload';
+import { t } from '@/lib/i18n';
 
 type CSSProps = Record<string, string | number>;
 
@@ -86,7 +87,7 @@ export function BootScreen({ error, progress, onRetry }: BootScreenProps) {
       <section style={S.panel} aria-label="RaptorQR startup">
         <h1 style={S.title}>RaptorQR</h1>
         <p style={S.body}>
-          Preparing runtime assets for offline use. The app will open after the required WASM files are ready.
+          {t('boot.preparing')}
         </p>
         <div
           role="progressbar"
@@ -98,14 +99,14 @@ export function BootScreen({ error, progress, onRetry }: BootScreenProps) {
           <div style={S.progressFill(percent)} />
         </div>
         <div style={S.meta}>
-          <span>{progress.currentLabel}</span>
+          <span>{t('boot.runtime')}</span>
           <span>{percent}%</span>
         </div>
         {error && (
           <>
             <div style={S.error}>{error}</div>
             <button type="button" style={S.button} onClick={onRetry}>
-              Retry
+              {t('common.retry')}
             </button>
           </>
         )}
