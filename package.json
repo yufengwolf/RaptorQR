@@ -10,6 +10,8 @@
   },
   "scripts": {
     "dev:web": "pnpm --filter @raptorqr/web dev",
+    "serve": "python serve_web.py",
+    "serve:build": "pnpm build && python serve_web.py",
     "build": "pnpm --filter @raptorqr/fast-qr-wasm build && pnpm --filter @raptorqr/raptorq-wasm build && pnpm --filter @raptorqr/core build && pnpm --filter @raptorqr/cli build && pnpm --filter @raptorqr/web build",
     "test": "pnpm --filter @raptorqr/fast-qr-wasm test && pnpm --filter @raptorqr/raptorq-wasm test && pnpm --filter @raptorqr/core test && pnpm --filter @raptorqr/cli test && pnpm --filter @raptorqr/web test",
     "test:smoke": "vitest run smoke.test.ts --environment node",

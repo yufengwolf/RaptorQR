@@ -77,6 +77,8 @@ pnpm test
 pnpm dev:web
 ```
 
+> 注意：`pnpm dev:web` 是 HTTP 开发服务器（localhost 热更新），手机/局域网摄像头需在安全上下文（HTTPS）下运行，请改用仓库根部的 `serve_web.py`（或 `pnpm serve` / `pnpm serve:build`）。
+
 The test split follows ownership:
 
 * core: protocol, packetization, FEC, reconstruction

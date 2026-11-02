@@ -74,30 +74,36 @@ RaptorQR 使用 Rust 实现的 [`cberner/raptorq`](https://github.com/cberner/ra
 
 ## 开发
 
-安装依赖：
+### 安装依赖
 
 ```bash
 pnpm install
 ```
 
-启动网页开发服务器：
+### 本地开发（改代码、热更新）
 
 ```bash
 pnpm dev:web
 ```
 
-随后打开终端打印的 Vite 地址，通常是：
+随后打开终端打印的 Vite 地址，通常是 `http://localhost:5173`。Vite 开发服务器是 **HTTP**，仅在 `localhost` 下才能调用摄像头；手机/局域网访问请走下方的「本地运行」。
 
-```text
-http://localhost:5173
+### 本地运行（实际上手 / 手机摄像头接收）
+
+本工具的真实使用场景是「电脑播放二维码、手机摄像头接收」，而浏览器**只在安全上下文（HTTPS 或 localhost）下才允许调用摄像头 API**，纯 HTTP（含局域网 IP 的 HTTP）会被直接拒绝。仓库根部附带的 `serve_web.py` 是一个局域网自签 HTTPS 服务（证书 SAN 已包含 localhost 与局域网 IP），用来托管构建产物：
+
+```bash
+pnpm build            # 先构建前端产物到 apps/web/dist
+pnpm serve            # 等价于 python serve_web.py，默认 https://0.0.0.0:8443
 ```
 
-如需在**同一局域网的其他设备（如手机）上调用摄像头**，必须通过安全上下文（HTTPS 或 localhost）访问——浏览器安全策略会拒绝在纯 HTTP（含局域网 IP 的 HTTP）下使用摄像头 API。
+手机浏览器打开 `https://<电脑局域网IP>:8443/`，点「继续」忽略证书警告即可（默认中文界面，右上角可切换中/英文）。
 
-- 本地调试可用 `localhost:5173`（无需 HTTPS）。
-- 手机/局域网访问：先用本仓库附带的局域网 HTTPS 服务 `serve_web.py`（自签证书，已包含局域网 IP 的 SAN）托管构建产物，见下方[部署](#部署)。
+- 换端口：`python serve_web.py --port 9000`
+- 一步到位（构建 + 启动）：`pnpm serve:build`
+- 更省事的公网方案见下方[部署](#部署)（Cloudflare Pages / Vercel，合法证书零警告）。
 
-构建全部内容：
+### 构建全部内容
 
 ```bash
 pnpm build
@@ -134,13 +140,15 @@ apps/web/dist
 
 ### 局域网 HTTPS（手机调用摄像头）
 
-仓库根目录的 `serve_web.py` 是一个局域网自签 HTTPS 服务，用于在本机托管 `apps/web/dist` 并通过包含局域网 IP 的证书让手机摄像头可用：
+仓库根目录的 `serve_web.py` 是一个局域网自签 HTTPS 服务，用于在本机托管 `apps/web/dist` 并通过包含局域网 IP 的证书让手机摄像头可用。需**先构建**再启动：
 
 ```bash
-python serve_web.py     # 自签 HTTPS，默认端口 8443，证书 SAN 含 localhost 与局域网 IP
+pnpm build             # 构建前端产物到 apps/web/dist
+pnpm serve             # 等价于 python serve_web.py，默认 https://0.0.0.0:8443
+# 或一步完成：pnpm serve:build
 ```
 
-手机浏览器打开 `https://<电脑局域网IP>:8443/`，点击「继续」忽略证书警告即可。打开后默认中文界面，右上角可切换中/英文。
+手机浏览器打开 `https://<电脑局域网IP>:8443/`，点击「继续」忽略证书警告即可。打开后默认中文界面，右上角可切换中/英文。换端口用 `python serve_web.py --port 9000`。
 
 ## 命令行 CLI
 
