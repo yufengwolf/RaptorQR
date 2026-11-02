@@ -10,11 +10,21 @@
     <link rel="icon" href="./raptorqr.svg" type="image/svg+xml" />
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { background: #0d1117; }
+      body {
+        background:
+          radial-gradient(1200px 700px at 50% -15%, #162032 0%, transparent 60%),
+          radial-gradient(900px 520px at 100% 0%, #14233a 0%, transparent 55%),
+          radial-gradient(900px 520px at 0% 0%, #14233a 0%, transparent 55%),
+          #0a0e14;
+      }
       #root { min-height: 100vh; }
       .boot-shell {
         min-height: 100vh;
-        background: #0d1117;
+        background:
+          radial-gradient(1200px 700px at 50% -15%, #162032 0%, transparent 60%),
+          radial-gradient(900px 520px at 100% 0%, #14233a 0%, transparent 55%),
+          radial-gradient(900px 520px at 0% 0%, #14233a 0%, transparent 55%),
+          #0a0e14;
         color: #f0f6fc;
         display: grid;
         place-items: center;
@@ -44,7 +54,7 @@
       .boot-progress-fill {
         width: 18%;
         height: 100%;
-        background: #58a6ff;
+        background: linear-gradient(90deg, #6d8bff 0%, #36d6c3 100%);
       }
       .boot-meta {
         display: flex;

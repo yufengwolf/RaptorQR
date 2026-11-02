@@ -94,9 +94,7 @@ interface FrameCache {
 }
 
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-type CSSProps = Record<string, string | number>;
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const MIN_FRAME_RATE_FPS = 2;
 const MAX_FRAME_RATE_FPS = 60;
@@ -112,166 +110,6 @@ const QR_RENDER_BATCH_LIMIT = 32;
 const RENDER_CACHE_FILL_RATIO = 0.75;
 const LIVE_FPS_WINDOW_MS = 2_000;
 const LIVE_STATS_UPDATE_MS = 250;
-
-const S = {
-  section: {
-    background: '#161b22',
-    border: '1px solid #30363d',
-    borderRadius: 8,
-    padding: 20,
-    marginBottom: 16,
-  } as CSSProps,
-  label: {
-    display: 'block',
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#8b949e',
-    marginBottom: 6,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  row: {
-    display: 'flex',
-    gap: 12,
-    alignItems: 'center',
-    flexWrap: 'wrap' as const,
-  },
-  btn: {
-    background: '#238636',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 6,
-    padding: '10px 24px',
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: 'pointer',
-  } as CSSProps,
-  btnSecondary: {
-    background: '#21262d',
-    color: '#c9d1d9',
-    border: '1px solid #30363d',
-    borderRadius: 6,
-    padding: '10px 24px',
-    fontSize: 15,
-    cursor: 'pointer',
-  } as CSSProps,
-  textarea: {
-    width: '100%',
-    boxSizing: 'border-box' as const,
-    background: '#0d1117',
-    color: '#c9d1d9',
-    border: '1px solid #30363d',
-    borderRadius: 6,
-    padding: 12,
-    fontSize: 14,
-    fontFamily: 'monospace',
-    resize: 'vertical' as const,
-    minHeight: 120,
-  },
-  preview: {
-    background: '#fff',
-    borderRadius: 8,
-    imageRendering: 'pixelated' as const,
-    maxWidth: '100%',
-    display: 'block',
-  } as CSSProps,
-  qrStage: (fullscreen: boolean): CSSProps => ({
-    background: '#fff',
-    borderRadius: fullscreen ? 0 : 8,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: fullscreen ? 0 : '12px 0',
-    width: fullscreen ? '100vw' : 'fit-content',
-    height: fullscreen ? '100vh' : 'auto',
-    maxWidth: '100%',
-  }),
-  fullscreenPreview: {
-    width: '100vw',
-    height: '100vh',
-    borderRadius: 0,
-    objectFit: 'contain',
-  } as CSSProps,
-  infoGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 8,
-    fontSize: 13,
-  } as CSSProps,
-  infoLabel: { color: '#8b949e' },
-  infoValue: { color: '#f0f6fc', fontFamily: 'monospace' },
-  slider: {
-    width: '100%',
-    accentColor: '#58a6ff',
-  } as CSSProps,
-  sliderLabels: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    color: '#8b949e',
-    fontSize: 12,
-    marginTop: 4,
-  } as CSSProps,
-  select: {
-    width: '100%',
-    background: '#0d1117',
-    color: '#c9d1d9',
-    border: '1px solid #30363d',
-    borderRadius: 6,
-    padding: '9px 10px',
-    fontSize: 14,
-  } as CSSProps,
-  hiddenInput: {
-    display: 'none',
-  } as CSSProps,
-  fileName: {
-    color: '#c9d1d9',
-    fontSize: 14,
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-  } as CSSProps,
-  warn: {
-    background: '#3d2600',
-    border: '1px solid #bb8009',
-    borderRadius: 6,
-    padding: '10px 14px',
-    color: '#d29922',
-    fontSize: 13,
-    marginTop: 8,
-  },
-  toggleGroup: {
-    display: 'flex',
-    gap: 4,
-    background: '#0d1117',
-    borderRadius: 6,
-    padding: 2,
-  } as CSSProps,
-  toggleBtn: (active: boolean): CSSProps => ({
-    padding: '6px 14px',
-    borderRadius: 4,
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 500,
-    background: active ? '#1f2937' : 'transparent',
-    color: active ? '#f0f6fc' : '#8b949e',
-    transition: 'all 0.15s',
-  }),
-  spinner: {
-    width: 20,
-    height: 20,
-    border: '2px solid #30363d',
-    borderTopColor: '#58a6ff',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-    display: 'inline-block',
-    verticalAlign: 'middle',
-    marginRight: 8,
-  } as CSSProps,
-};
-
-// ─── Component ───────────────────────────────────────────────────────────────────
 
 export function SenderPage() {
   useLang();
@@ -402,7 +240,7 @@ export function SenderPage() {
 
     const renderWindowFrames = getRenderWindowDisplayFrames(transfer, frameCacheRef.current);
     const maxOutstandingPackets = getMaxOutstandingRenderPackets(transfer, frameCacheRef.current);
-    const windowPacketIndexes = getPlaybackWindowPacketIndexes(
+    const windowPacketIndexes = getPlaybackWindowPacketIndices(
       transfer,
       startFrameIndex,
       renderWindowFrames,
@@ -472,7 +310,7 @@ export function SenderPage() {
             activeTransfer,
             frameCacheRef.current,
           );
-          const activeWindowPackets = new Set(getPlaybackWindowPacketIndexes(
+          const activeWindowPackets = new Set(getPlaybackWindowPacketIndices(
             activeTransfer,
             currentFrameIndex,
             activeRenderWindowFrames,
@@ -489,7 +327,7 @@ export function SenderPage() {
             return;
           }
 
-          const latestWindowPackets = new Set(getPlaybackWindowPacketIndexes(
+          const latestWindowPackets = new Set(getPlaybackWindowPacketIndices(
             activeTransfer,
             liveFrameIndexRef.current % activeTransfer.displayFrameCount,
             activeRenderWindowFrames,
@@ -1005,354 +843,408 @@ export function SenderPage() {
   }, []);
 
   return (
-    <div>
-      <style>{`
-        .qr-live-canvas {
-          image-rendering: -moz-crisp-edges;
-          image-rendering: pixelated;
-        }
-      `}</style>
-      {/* ── Input mode toggle ───────────────────────────────────────────────── */}
-      <div style={S.section}>
-        <div style={S.row}>
-          <span style={S.label}>{t('sender.input.mode')}</span>
-          <div style={S.toggleGroup}>
-            <button style={S.toggleBtn(mode === 'file')} onClick={() => handleModeChange('file')}>{t('sender.input.file')}</button>
-            <button style={S.toggleBtn(mode === 'text')} onClick={() => handleModeChange('text')}>{t('sender.input.text')}</button>
+    <>
+      {/* ── Input mode ─────────────────────────────────────────────────────── */}
+      <div className="rq-card">
+        <div className="rq-row">
+          <span className="rq-label">{t('sender.input.mode')}</span>
+          <div className="rq-toggle">
+            <button
+              className={mode === 'file' ? 'rq-toggle-btn active' : 'rq-toggle-btn'}
+              onClick={() => handleModeChange('file')}
+            >
+              {t('sender.input.file')}
+            </button>
+            <button
+              className={mode === 'text' ? 'rq-toggle-btn active' : 'rq-toggle-btn'}
+              onClick={() => handleModeChange('text')}
+            >
+              {t('sender.input.text')}
+            </button>
           </div>
         </div>
-
         {mode === 'text' ? (
           <textarea
-            style={{ ...S.textarea, marginTop: 10 }}
+            className="rq-textarea"
+            style={{ marginTop: 10 }}
             placeholder={t('sender.input.placeholder')}
             value={text}
             onInput={(e) => handleTextChange((e.target as HTMLTextAreaElement).value)}
           />
         ) : (
-          <div style={{ ...S.row, marginTop: 10 }}>
+          <div className="rq-row" style={{ marginTop: 10 }}>
             <input
               ref={fileInputRef}
               type="file"
-              style={S.hiddenInput}
+              className="rq-hidden"
               onChange={handleFile}
             />
             <button
               type="button"
-              style={S.btnSecondary}
+              className="rq-btn-secondary"
               disabled={encodingLive}
               onClick={handleChooseFile}
             >
               {t('sender.input.chooseFile')}
             </button>
-            <span style={S.fileName} title={file?.name ?? ''}>
+            <span className="rq-filename" title={file?.name ?? ''}>
               {file ? `${file.name} · ${formatBytes(file.size)}` : t('sender.input.noFile')}
             </span>
           </div>
         )}
       </div>
 
-      {/* ── Generate ────────────────────────────────────────────────────── */}
-      <div style={S.section}>
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>{t('sender.size')}</span>
-            <span style={S.infoValue}>{qrProfile.maxPayloadSize} B/frame</span>
-          </div>
-          <select
-            value={qrVersion}
-            style={S.select}
-            disabled={encodingLive}
-            onChange={(e) => handleQRVersionChange((e.target as HTMLSelectElement).value)}
-          >
-            {QR_VERSION_OPTIONS.map((version) => {
-              const profile = createQRTransferProfile(version, eccLevel, qrEncoder);
-              return (
-                <option key={version} value={version}>
-                  V{version} · {profile.maxPayloadSize} B/frame
-                </option>
-              );
-            })}
-          </select>
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>{t('sender.ecc')}</span>
-            <span style={S.infoValue}>{eccLevel}</span>
-          </div>
-          <select
-            value={eccLevel}
-            style={S.select}
-            disabled={encodingLive}
-            onChange={(e) => handleEccLevelChange((e.target as HTMLSelectElement).value)}
-          >
-            {ECC_LEVEL_OPTIONS.map((level) => {
-              const profile = createQRTransferProfile(qrVersion, level, qrEncoder);
-              return (
-                <option key={level} value={level}>
-                  {formatEccLevel(level)} · {profile.maxPayloadSize} B/frame
-                </option>
-              );
-            })}
-          </select>
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <button
-            type="button"
-            style={S.btnSecondary}
-            onClick={() => setAdvancedGenerateOpen((open) => !open)}
-          >
-            {advancedGenerateOpen ? t('sender.advanced.hide') : t('sender.advanced.show')}
-          </button>
-          {advancedGenerateOpen && (
-            <div style={{ marginTop: 14, display: 'grid', gap: 16 }}>
-              <label>
-                <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={S.label}>{t('sender.encoder')}</span>
-                  <span style={S.infoValue}>{formatQREncoder(qrEncoder)}</span>
-                </div>
-                <select
-                  value={qrEncoder}
-                  style={S.select}
-                  disabled={encodingLive}
-                  onChange={(e) => handleQREncoderChange((e.target as HTMLSelectElement).value)}
-                >
-                  {QR_ENCODERS.map((encoder) => (
-                    <option key={encoder} value={encoder}>
-                      {formatQREncoder(encoder)}
+      <div className="rq-grid">
+        {/* ── LEFT: generate settings ─────────────────────────────────────── */}
+        <div className="rq-col">
+          <div className="rq-card">
+            <div className="rq-card-title">{t('sender.generate')}</div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div className="rq-row-between">
+                <span className="rq-label">{t('sender.size')}</span>
+                <span className="rq-info-v">{qrProfile.maxPayloadSize} B/frame</span>
+              </div>
+              <select
+                value={qrVersion}
+                className="rq-select"
+                disabled={encodingLive}
+                onChange={(e) => handleQRVersionChange((e.target as HTMLSelectElement).value)}
+              >
+                {QR_VERSION_OPTIONS.map((version) => {
+                  const profile = createQRTransferProfile(version, eccLevel, qrEncoder);
+                  return (
+                    <option key={version} value={version}>
+                      V{version} · {profile.maxPayloadSize} B/frame
                     </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={S.label}>{t('sender.fec')}</span>
-                  <span style={S.infoValue}>{formatFecCodec(fecCodec)}</span>
-                </div>
-                <select
-                  value={fecCodec}
-                  style={S.select}
-                  disabled={encodingLive}
-                  onChange={(e) => handleFecCodecChange((e.target as HTMLSelectElement).value)}
-                >
-                  {FEC_CODEC_OPTIONS.map((codec) => (
-                    <option key={codec} value={codec}>
-                      {formatFecCodec(codec)}
+                  );
+                })}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div className="rq-row-between">
+                <span className="rq-label">{t('sender.ecc')}</span>
+                <span className="rq-info-v">{eccLevel}</span>
+              </div>
+              <select
+                value={eccLevel}
+                className="rq-select"
+                disabled={encodingLive}
+                onChange={(e) => handleEccLevelChange((e.target as HTMLSelectElement).value)}
+              >
+                {ECC_LEVEL_OPTIONS.map((level) => {
+                  const profile = createQRTransferProfile(qrVersion, level, qrEncoder);
+                  return (
+                    <option key={level} value={level}>
+                      {formatEccLevel(level)} · {profile.maxPayloadSize} B/frame
                     </option>
-                  ))}
-                </select>
-              </label>
-              {fecCodec === 'wasm-raptorq' && (
-                <>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <button
+                type="button"
+                className="rq-btn-secondary"
+                onClick={() => setAdvancedGenerateOpen((open) => !open)}
+              >
+                {advancedGenerateOpen ? t('sender.advanced.hide') : t('sender.advanced.show')}
+              </button>
+              {advancedGenerateOpen && (
+                <div style={{ marginTop: 14, display: 'grid', gap: 16 }}>
                   <label>
-                    <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={S.label}>{t('sender.raptorq.repair')}</span>
-                      <span style={S.infoValue}>{raptorqRepairPercent}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={MIN_RAPTORQ_REPAIR_PERCENT}
-                      max={MAX_RAPTORQ_REPAIR_PERCENT}
-                      step={1}
-                      value={raptorqRepairPercent}
-                      style={S.slider}
-                      disabled={encodingLive || liveTransfer !== null}
-                      onInput={(e) => handleRaptorQRepairPercentChange((e.target as HTMLInputElement).value)}
-                    />
-                    <div style={S.sliderLabels}>
-                      <span>{t('sender.raptorq.repair.less')}</span>
-                      <span>{t('sender.raptorq.repair.more')}</span>
-                    </div>
-                  </label>
-                  <label>
-                    <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={S.label}>{t('sender.raptorq.playback')}</span>
-                      <span style={S.infoValue}>{formatRaptorQPlaybackStrategy(raptorqPlaybackStrategy)}</span>
+                    <div className="rq-row-between">
+                      <span className="rq-label">{t('sender.encoder')}</span>
+                      <span className="rq-info-v">{formatQREncoder(qrEncoder)}</span>
                     </div>
                     <select
-                      value={raptorqPlaybackStrategy}
-                      style={S.select}
-                      disabled={encodingLive || liveTransfer !== null}
-                      onChange={(e) => handleRaptorQPlaybackStrategyChange((e.target as HTMLSelectElement).value)}
+                      value={qrEncoder}
+                      className="rq-select"
+                      disabled={encodingLive}
+                      onChange={(e) => handleQREncoderChange((e.target as HTMLSelectElement).value)}
                     >
-                      {RAPTORQ_PLAYBACK_STRATEGIES.map((strategy) => (
-                        <option key={strategy} value={strategy}>
-                          {formatRaptorQPlaybackStrategy(strategy)}
+                      {QR_ENCODERS.map((encoder) => (
+                        <option key={encoder} value={encoder}>
+                          {formatQREncoder(encoder)}
                         </option>
                       ))}
                     </select>
                   </label>
-                </>
+                  <label>
+                    <div className="rq-row-between">
+                      <span className="rq-label">{t('sender.fec')}</span>
+                      <span className="rq-info-v">{formatFecCodec(fecCodec)}</span>
+                    </div>
+                    <select
+                      value={fecCodec}
+                      className="rq-select"
+                      disabled={encodingLive}
+                      onChange={(e) => handleFecCodecChange((e.target as HTMLSelectElement).value)}
+                    >
+                      {FEC_CODEC_OPTIONS.map((codec) => (
+                        <option key={codec} value={codec}>
+                          {formatFecCodec(codec)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {fecCodec === 'wasm-raptorq' && (
+                    <>
+                      <label>
+                        <div className="rq-row-between">
+                          <span className="rq-label">{t('sender.raptorq.repair')}</span>
+                          <span className="rq-info-v">{raptorqRepairPercent}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          className="rq-range"
+                          min={MIN_RAPTORQ_REPAIR_PERCENT}
+                          max={MAX_RAPTORQ_REPAIR_PERCENT}
+                          step={1}
+                          value={raptorqRepairPercent}
+                          disabled={encodingLive || liveTransfer !== null}
+                          onInput={(e) => handleRaptorQRepairPercentChange((e.target as HTMLInputElement).value)}
+                        />
+                        <div className="rq-slider-labels">
+                          <span>{t('sender.raptorq.repair.less')}</span>
+                          <span>{t('sender.raptorq.repair.more')}</span>
+                        </div>
+                      </label>
+                      <label>
+                        <div className="rq-row-between">
+                          <span className="rq-label">{t('sender.raptorq.playback')}</span>
+                          <span className="rq-info-v">{formatRaptorQPlaybackStrategy(raptorqPlaybackStrategy)}</span>
+                        </div>
+                        <select
+                          value={raptorqPlaybackStrategy}
+                          className="rq-select"
+                          disabled={encodingLive || liveTransfer !== null}
+                          onChange={(e) => handleRaptorQPlaybackStrategyChange((e.target as HTMLSelectElement).value)}
+                        >
+                          {RAPTORQ_PLAYBACK_STRATEGIES.map((strategy) => (
+                            <option key={strategy} value={strategy}>
+                              {formatRaptorQPlaybackStrategy(strategy)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>{t('sender.speed')}</span>
-            <span style={S.infoValue}>{frameRateFps} fps · {formatDelayMs(frameDelayMs)} ms/frame</span>
-          </div>
-          <input
-            type="range"
-            min={MIN_FRAME_RATE_FPS}
-            max={MAX_FRAME_RATE_FPS}
-            step={1}
-            value={frameRateFps}
-            style={S.slider}
-            onInput={(e) => handleFrameRateChange((e.target as HTMLInputElement).value)}
-          />
-          <div style={S.sliderLabels}>
-            <span>{t('sender.speed.stable')}</span>
-            <span>{t('sender.speed.fast')}</span>
-          </div>
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>{t('sender.parallel')}</span>
-            <span style={S.infoValue}>{parallelQRCount} per tick</span>
-          </div>
-          <select
-            value={parallelQRCount}
-            style={S.select}
-            disabled={encodingLive}
-            onChange={(e) => handleParallelQRCountChange((e.target as HTMLSelectElement).value)}
-          >
-            {PARALLEL_QR_COUNTS.map((count) => (
-              <option key={count} value={count}>
-                {t('sender.parallel.perTick', { count })}
-              </option>
-            ))}
-          </select>
-          {parallelQRCount > 4 && (
-            <div style={S.warn}>
-              {t('sender.warn.parallel', { n: parallelQRCount })}
+
+            <div style={{ marginBottom: 16 }}>
+              <div className="rq-row-between">
+                <span className="rq-label">{t('sender.speed')}</span>
+                <span className="rq-info-v">{frameRateFps} fps · {formatDelayMs(frameDelayMs)} ms/frame</span>
+              </div>
+              <input
+                type="range"
+                className="rq-range"
+                min={MIN_FRAME_RATE_FPS}
+                max={MAX_FRAME_RATE_FPS}
+                step={1}
+                value={frameRateFps}
+                onInput={(e) => handleFrameRateChange((e.target as HTMLInputElement).value)}
+              />
+              <div className="rq-slider-labels">
+                <span>{t('sender.speed.stable')}</span>
+                <span>{t('sender.speed.fast')}</span>
+              </div>
             </div>
-          )}
+
+            <div style={{ marginBottom: 16 }}>
+              <div className="rq-row-between">
+                <span className="rq-label">{t('sender.parallel')}</span>
+                <span className="rq-info-v">{parallelQRCount} per tick</span>
+              </div>
+              <select
+                value={parallelQRCount}
+                className="rq-select"
+                disabled={encodingLive}
+                onChange={(e) => handleParallelQRCountChange((e.target as HTMLSelectElement).value)}
+              >
+                {PARALLEL_QR_COUNTS.map((count) => (
+                  <option key={count} value={count}>
+                    {t('sender.parallel.perTick', { count })}
+                  </option>
+                ))}
+              </select>
+              {parallelQRCount > 4 && (
+                <div className="rq-warn">
+                  {t('sender.warn.parallel', { n: parallelQRCount })}
+                </div>
+              )}
+            </div>
+
+            <div className="rq-row">
+              <button
+                className="rq-btn"
+                disabled={encodingLive}
+                onClick={handleStartLiveTransfer}
+              >
+                {encodingLive ? (
+                  <>
+                    <span className="rq-spinner" />
+                    {t('sender.encoding')}
+                  </>
+                ) : (
+                  t('sender.start')
+                )}
+              </button>
+              {(liveTransfer || preparingGif) && (
+                <button className="rq-btn-secondary" onClick={handleStopTransfer}>
+                  {t('sender.stop')}
+                </button>
+              )}
+            </div>
+            {status && <div className="rq-status">{status}</div>}
+            {error && <div className="rq-warn">⚠ {error}</div>}
+          </div>
         </div>
-        <div style={S.row}>
-          <button
-            style={encodingLive ? { ...S.btn, opacity: 0.6, cursor: 'not-allowed' } : S.btn}
-            disabled={encodingLive}
-            onClick={handleStartLiveTransfer}
-          >
-            {encodingLive ? (
+
+        {/* ── RIGHT: live preview + stats ─────────────────────────────────── */}
+        <div className="rq-col">
+          <div className="rq-card">
+            <div className="rq-card-title">{t('sender.live.title')}</div>
+            {liveTransfer ? (
               <>
-                <span style={S.spinner} />
-                {t('sender.encoding')}
+                <div
+                  ref={qrStageRef}
+                  className={fullscreenActive ? 'rq-stage rq-stage-fullscreen' : 'rq-stage'}
+                >
+                  <canvas
+                    className="rq-stage-canvas"
+                    ref={canvasRef}
+                    width={liveTransfer.width}
+                    height={liveTransfer.height}
+                    aria-label="Live QR transfer frames"
+                  />
+                </div>
+                <div className="rq-row" style={{ marginTop: 8 }}>
+                  <button className="rq-btn-secondary" onClick={handleFullscreenPlayback}>
+                    {t('sender.fullscreen')}
+                  </button>
+                  <button className="rq-btn-secondary" onClick={handleStopTransfer}>
+                    {t('sender.stop')}
+                  </button>
+                  <button
+                    className="rq-btn-secondary"
+                    disabled={preparingGif}
+                    onClick={handlePrepareGif}
+                  >
+                    {preparingGif ? (
+                      <>
+                        <span className="rq-spinner" />
+                        {t('sender.preparingGif')}
+                      </>
+                    ) : (
+                      t('sender.prepareGif')
+                    )}
+                  </button>
+                  {gifResult && (
+                    <button className="rq-btn" onClick={handleDownload}>
+                      {t('sender.downloadGif', { kb: Math.round(gifResult.gifData.byteLength / 1024) })}
+                    </button>
+                  )}
+                </div>
               </>
             ) : (
-              t('sender.start')
+              <div className="rq-stage rq-stage-empty">
+                <div className="rq-stage-hint">{t('sender.live.hint')}</div>
+              </div>
             )}
-          </button>
-          {(liveTransfer || preparingGif) && (
-            <button style={S.btnSecondary} onClick={handleStopTransfer}>
-              {t('sender.stop')}
-            </button>
+          </div>
+
+          {stats && (
+            <div className="rq-card">
+              <div className="rq-card-title">{t('sender.info.title')}</div>
+              <div className="rq-info">
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.original')}</span>
+                  <span className="rq-info-v">{formatBytes(stats.originalSize)}</span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.preprocessed')}</span>
+                  <span className="rq-info-v">{formatBytes(stats.preprocessedSize)}</span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.qrVersion')}</span>
+                  <span className="rq-info-v">{liveTransfer ? `V${liveTransfer.version}-${liveTransfer.eccLevel}` : qrProfile.label}</span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.encoder')}</span>
+                  <span className="rq-info-v">{formatQREncoder(stats.qrEncoder)}</span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.payload')}</span>
+                  <span className="rq-info-v">{liveTransfer ? `${liveTransfer.symbolSize} B/frame` : `${qrProfile.maxPayloadSize} B/frame`}</span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.fec')}</span>
+                  <span className="rq-info-v">
+                    {stats.fecCodec === 'wasm-raptorq'
+                      ? `${formatFecCodec(stats.fecCodec)} · ${stats.raptorqRepairPercent}% repair`
+                      : formatFecCodec(stats.fecCodec)}
+                  </span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.playback')}</span>
+                  <span className="rq-info-v">
+                    {stats.raptorqPlaybackStrategy
+                      ? formatRaptorQPlaybackStrategy(stats.raptorqPlaybackStrategy)
+                      : t('sender.info.notApplicable')}
+                  </span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.packets')}</span>
+                  <span className="rq-info-v">{stats.frameCount}</span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.parallel')}</span>
+                  <span className="rq-info-v">{liveTransfer ? `${liveTransfer.parallelCount} per tick` : `${parallelQRCount} per tick`}</span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.liveSpeed')}</span>
+                  <span className="rq-info-v">{frameRateFps} fps ({formatDelayMs(frameDelayMs)} ms)</span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.actualFps')}</span>
+                  <span className="rq-info-v">
+                    {liveTransfer
+                      ? `${actualLiveFps.toFixed(1)} fps · ${(actualLiveFps * liveTransfer.parallelCount).toFixed(1)} QR/s`
+                      : t('sender.info.notRunning')}
+                  </span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.renderCache')}</span>
+                  <span className="rq-info-v">
+                    {liveTransfer
+                      ? `${renderReadyPackets} ready · ${renderPendingPackets} pending`
+                      : t('sender.info.notRunning')}
+                  </span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.gifSpeed')}</span>
+                  <span className="rq-info-v">{gifResult ? `${gifResult.frameRateFps} fps (${formatDelayMs(gifResult.frameDelayMs)} ms)` : preparingGif ? t('sender.info.preparing') : t('sender.info.notPrepared')}</span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{stats.fecCodec === 'wasm-raptorq' ? t('sender.info.raptorqPackets') : t('sender.info.generations')}</span>
+                  <span className="rq-info-v">{stats.totalGenerations}</span>
+                </div>
+                <div className="rq-info-cell">
+                  <span className="rq-info-k">{t('sender.info.gifSize')}</span>
+                  <span className="rq-info-v">{gifResult ? formatBytes(gifResult.gifData.byteLength) : preparingGif ? '…' : t('sender.info.notPrepared')}</span>
+                </div>
+              </div>
+            </div>
           )}
         </div>
-        {status && <div style={{ ...S.infoValue, marginTop: 10 }}>{status}</div>}
-        {error && <div style={S.warn}>⚠ {error}</div>}
       </div>
-
-      {/* ── Preview ──────────────────────────────────────────────────────────── */}
-      {liveTransfer && (
-        <div style={S.section}>
-          <div style={S.label}>{t('sender.live.title')}</div>
-          <div ref={qrStageRef} style={S.qrStage(fullscreenActive)}>
-            <canvas
-              className="qr-live-canvas"
-              ref={canvasRef}
-              width={liveTransfer.width}
-              height={liveTransfer.height}
-              aria-label="Live QR transfer frames"
-              style={fullscreenActive ? { ...S.preview, ...S.fullscreenPreview } : S.preview}
-            />
-          </div>
-          <div style={{ ...S.row, marginTop: 8 }}>
-            <button style={S.btnSecondary} onClick={handleFullscreenPlayback}>
-              {t('sender.fullscreen')}
-            </button>
-            <button style={S.btnSecondary} onClick={handleStopTransfer}>
-              {t('sender.stop')}
-            </button>
-            <button
-              style={preparingGif ? { ...S.btnSecondary, opacity: 0.6, cursor: 'not-allowed' } : S.btnSecondary}
-              disabled={preparingGif}
-              onClick={handlePrepareGif}
-            >
-              {preparingGif ? (
-                <>
-                  <span style={S.spinner} />
-                  {t('sender.preparingGif')}
-                </>
-              ) : (
-                t('sender.prepareGif')
-              )}
-            </button>
-            {gifResult && (
-              <button style={S.btn} onClick={handleDownload}>
-                {t('sender.downloadGif', { kb: Math.round(gifResult.gifData.byteLength / 1024) })}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Stats ────────────────────────────────────────────────────────────── */}
-      {stats && (
-        <div style={S.section}>
-          <div style={S.label}>{t('sender.info.title')}</div>
-          <div style={S.infoGrid}>
-            <span style={S.infoLabel}>{t('sender.info.original')}</span>
-            <span style={S.infoValue}>{formatBytes(stats.originalSize)}</span>
-            <span style={S.infoLabel}>{t('sender.info.preprocessed')}</span>
-            <span style={S.infoValue}>{formatBytes(stats.preprocessedSize)}</span>
-            <span style={S.infoLabel}>{t('sender.info.qrVersion')}</span>
-            <span style={S.infoValue}>{liveTransfer ? `V${liveTransfer.version}-${liveTransfer.eccLevel}` : qrProfile.label}</span>
-            <span style={S.infoLabel}>{t('sender.info.encoder')}</span>
-            <span style={S.infoValue}>{formatQREncoder(stats.qrEncoder)}</span>
-            <span style={S.infoLabel}>{t('sender.info.payload')}</span>
-            <span style={S.infoValue}>{liveTransfer ? `${liveTransfer.symbolSize} B/frame` : `${qrProfile.maxPayloadSize} B/frame`}</span>
-            <span style={S.infoLabel}>{t('sender.info.fec')}</span>
-            <span style={S.infoValue}>
-              {stats.fecCodec === 'wasm-raptorq'
-                ? `${formatFecCodec(stats.fecCodec)} · ${stats.raptorqRepairPercent}% repair`
-                : formatFecCodec(stats.fecCodec)}
-            </span>
-            <span style={S.infoLabel}>{t('sender.info.playback')}</span>
-            <span style={S.infoValue}>
-              {stats.raptorqPlaybackStrategy
-                ? formatRaptorQPlaybackStrategy(stats.raptorqPlaybackStrategy)
-                : t('sender.info.notApplicable')}
-            </span>
-            <span style={S.infoLabel}>{t('sender.info.packets')}</span>
-            <span style={S.infoValue}>{stats.frameCount}</span>
-            <span style={S.infoLabel}>{t('sender.info.parallel')}</span>
-            <span style={S.infoValue}>{liveTransfer ? `${liveTransfer.parallelCount} per tick` : `${parallelQRCount} per tick`}</span>
-            <span style={S.infoLabel}>{t('sender.info.liveSpeed')}</span>
-            <span style={S.infoValue}>{frameRateFps} fps ({formatDelayMs(frameDelayMs)} ms)</span>
-            <span style={S.infoLabel}>{t('sender.info.actualFps')}</span>
-            <span style={S.infoValue}>
-              {liveTransfer
-                ? `${actualLiveFps.toFixed(1)} fps · ${(actualLiveFps * liveTransfer.parallelCount).toFixed(1)} QR/s`
-                : t('sender.info.notRunning')}
-            </span>
-            <span style={S.infoLabel}>{t('sender.info.renderCache')}</span>
-            <span style={S.infoValue}>
-              {liveTransfer
-                ? `${renderReadyPackets} ready · ${renderPendingPackets} pending`
-                : t('sender.info.notRunning')}
-            </span>
-            <span style={S.infoLabel}>{t('sender.info.gifSpeed')}</span>
-            <span style={S.infoValue}>{gifResult ? `${gifResult.frameRateFps} fps (${formatDelayMs(gifResult.frameDelayMs)} ms)` : preparingGif ? t('sender.info.preparing') : t('sender.info.notPrepared')}</span>
-            <span style={S.infoLabel}>{stats.fecCodec === 'wasm-raptorq' ? t('sender.info.raptorqPackets') : t('sender.info.generations')}</span>
-            <span style={S.infoValue}>{stats.totalGenerations}</span>
-            <span style={S.infoLabel}>{t('sender.info.gifSize')}</span>
-            <span style={S.infoValue}>{gifResult ? formatBytes(gifResult.gifData.byteLength) : preparingGif ? '…' : t('sender.info.notPrepared')}</span>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -1558,7 +1450,7 @@ function trimFrameCache(
 ): void {
   if (transfer) {
     const renderWindowFrames = getRenderWindowDisplayFrames(transfer, cache);
-    const windowPacketIndexes = new Set(getPlaybackWindowPacketIndexes(
+    const windowPacketIndexes = new Set(getPlaybackWindowPacketIndices(
       transfer,
       startFrameIndex,
       renderWindowFrames,
@@ -1609,7 +1501,7 @@ function pruneRequestedPacketsForPlaybackWindow(
   }
 }
 
-function getPlaybackWindowPacketIndexes(
+function getPlaybackWindowPacketIndices(
   transfer: LiveTransfer,
   startFrameIndex: number,
   renderWindowFrames: number,

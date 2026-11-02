@@ -12,7 +12,8 @@ interface BootScreenProps {
 const S = {
   page: {
     minHeight: '100vh',
-    background: '#0d1117',
+    background:
+      'radial-gradient(1200px 700px at 50% -15%, #162032 0%, transparent 60%), radial-gradient(900px 520px at 100% 0%, #14233a 0%, transparent 55%), radial-gradient(900px 520px at 0% 0%, #14233a 0%, transparent 55%), #0a0e14',
     color: '#f0f6fc',
     display: 'grid',
     placeItems: 'center',
@@ -44,7 +45,7 @@ const S = {
   progressFill: (percent: number): CSSProps => ({
     width: `${percent}%`,
     height: '100%',
-    background: '#58a6ff',
+    background: 'linear-gradient(90deg, #6d8bff 0%, #36d6c3 100%)',
     transition: 'width 160ms ease',
   }),
   meta: {

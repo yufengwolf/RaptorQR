@@ -36,7 +36,6 @@ interface ReceivedFile {
 
 type InputMode = 'camera' | 'gif-file';
 
-type CSSProps = Record<string, string | number>;
 type DecodeRateSample = { time: number; count: number };
 
 const MIN_SCAN_RATE_FPS = 2;
@@ -48,174 +47,6 @@ const RECEIVER_FEC_CODEC_OPTIONS: ReceiverFecCodec[] = [
   'auto',
   ...FEC_CODECS.map((codec) => codec.id),
 ];
-
-const S = {
-  section: {
-    background: '#161b22',
-    border: '1px solid #30363d',
-    borderRadius: 8,
-    padding: 20,
-    marginBottom: 16,
-  } as CSSProps,
-  label: {
-    display: 'block',
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#8b949e',
-    marginBottom: 6,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  row: {
-    display: 'flex',
-    gap: 12,
-    alignItems: 'center',
-    flexWrap: 'wrap' as const,
-  },
-  btn: {
-    background: '#238636',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 6,
-    padding: '10px 24px',
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: 'pointer',
-  } as CSSProps,
-  btnStop: {
-    background: '#da3633',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 6,
-    padding: '10px 24px',
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: 'pointer',
-  } as CSSProps,
-  btnSecondary: {
-    background: '#21262d',
-    color: '#c9d1d9',
-    border: '1px solid #30363d',
-    borderRadius: 6,
-    padding: '10px 16px',
-    fontSize: 14,
-    cursor: 'pointer',
-  } as CSSProps,
-  select: {
-    width: '100%',
-    background: '#0d1117',
-    color: '#c9d1d9',
-    border: '1px solid #30363d',
-    borderRadius: 6,
-    padding: '9px 10px',
-    fontSize: 14,
-  } as CSSProps,
-  video: {
-    width: '100%',
-    maxWidth: 480,
-    borderRadius: 6,
-    background: '#000',
-    display: 'block',
-    marginTop: 8,
-  } as CSSProps,
-  statsBar: {
-    display: 'flex',
-    gap: 16,
-    alignItems: 'center',
-    fontSize: 12,
-    color: '#8b949e',
-    marginTop: 6,
-    flexWrap: 'wrap' as const,
-  } as CSSProps,
-  statValue: {
-    color: '#c9d1d9',
-    fontWeight: 600,
-    fontFamily: 'monospace',
-    fontSize: 13,
-  } as CSSProps,
-  slider: {
-    width: '100%',
-    accentColor: '#58a6ff',
-  } as CSSProps,
-  sliderLabels: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    color: '#8b949e',
-    fontSize: 12,
-    marginTop: 4,
-  } as CSSProps,
-  warn: {
-    background: '#3d2600',
-    border: '1px solid #bb8009',
-    borderRadius: 6,
-    padding: '10px 14px',
-    color: '#d29922',
-    fontSize: 13,
-    marginTop: 8,
-  },
-  sp: {
-    width: 20,
-    height: 20,
-    border: '2px solid #30363d',
-    borderTopColor: '#58a6ff',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-    display: 'inline-block',
-    verticalAlign: 'middle',
-    marginRight: 8,
-  } as CSSProps,
-  toggleGroup: {
-    display: 'flex',
-    gap: 4,
-    background: '#0d1117',
-    borderRadius: 6,
-    padding: 2,
-  } as CSSProps,
-  toggleBtn: (active: boolean): CSSProps => ({
-    padding: '6px 14px',
-    borderRadius: 4,
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 500,
-    background: active ? '#1f2937' : 'transparent',
-    color: active ? '#f0f6fc' : '#8b949e',
-    transition: 'all 0.15s',
-  }),
-  textarea: {
-    width: '100%',
-    boxSizing: 'border-box' as const,
-    background: '#0d1117',
-    color: '#c9d1d9',
-    border: '1px solid #30363d',
-    borderRadius: 6,
-    padding: 12,
-    fontSize: 14,
-    fontFamily: 'monospace',
-    resize: 'vertical' as const,
-    minHeight: 120,
-  } as CSSProps,
-  hiddenInput: {
-    display: 'none',
-  } as CSSProps,
-  fileName: {
-    color: '#c9d1d9',
-    fontSize: 14,
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-  } as CSSProps,
-  checkboxLabel: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    color: '#c9d1d9',
-    fontSize: 13,
-  } as CSSProps,
-};
-
-// ─── Component ───────────────────────────────────────────────────────────────────
 
 export function ReceiverPage() {
   useLang();
@@ -545,6 +376,45 @@ export function ReceiverPage() {
     }
   }, []);
 
+  function captureFrame(): void {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const worker = workerRef.current;
+    if (!video || !canvas || !worker || video.readyState < 2) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const vw = video.videoWidth || 640;
+    const vh = video.videoHeight || 640;
+
+    // Output canvas size: cap at 640 for performance, but preserve aspect ratio
+    const maxCanvas = 640;
+    const aspect = vw / vh;
+    let cw: number, ch: number;
+    if (aspect >= 1) {
+      cw = Math.min(vw, maxCanvas);
+      ch = Math.round(cw / aspect);
+    } else {
+      ch = Math.min(vh, maxCanvas);
+      cw = Math.round(ch * aspect);
+    }
+    if (captureSizeRef.current.width !== cw || captureSizeRef.current.height !== ch) {
+      canvas.width = cw;
+      canvas.height = ch;
+      captureSizeRef.current = { width: cw, height: ch };
+    }
+
+    ctx.drawImage(video, 0, 0, vw, vh, 0, 0, cw, ch);
+    const imageData = ctx.getImageData(0, 0, cw, ch);
+    const pixels = imageData.data.buffer as ArrayBuffer;
+
+    worker.postMessage(
+      { type: 'frame', pixels, width: cw, height: ch, realtime: true },
+      [pixels],
+    );
+  }
+
   // ── Process GIF file ───────────────────────────────────────────────────
   const handleGifFile = useCallback(async (e: Event) => {
     const input = e.target as HTMLInputElement;
@@ -641,47 +511,6 @@ export function ReceiverPage() {
     setZoomLevel(1);
   }, []);
 
-
-  // ── Capture the full camera frame ─────────────────────────────────────────
-  const captureFrame = useCallback(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const worker = workerRef.current;
-    if (!video || !canvas || !worker || video.readyState < 2) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const vw = video.videoWidth || 640;
-    const vh = video.videoHeight || 640;
-
-    // Output canvas size: cap at 640 for performance, but preserve aspect ratio
-    const maxCanvas = 640;
-    const aspect = vw / vh;
-    let cw: number, ch: number;
-    if (aspect >= 1) {
-      cw = Math.min(vw, maxCanvas);
-      ch = Math.round(cw / aspect);
-    } else {
-      ch = Math.min(vh, maxCanvas);
-      cw = Math.round(ch * aspect);
-    }
-    if (captureSizeRef.current.width !== cw || captureSizeRef.current.height !== ch) {
-      canvas.width = cw;
-      canvas.height = ch;
-      captureSizeRef.current = { width: cw, height: ch };
-    }
-
-    ctx.drawImage(video, 0, 0, vw, vh, 0, 0, cw, ch);
-    const imageData = ctx.getImageData(0, 0, cw, ch);
-    const pixels = imageData.data.buffer as ArrayBuffer;
-
-    worker.postMessage(
-      { type: 'frame', pixels, width: cw, height: ch, realtime: true },
-      [pixels],
-    );
-  }, []);
-
   // ── Download recovered file ──────────────────────────────────────────────
   const handleDownload = useCallback(() => {
     if (!receivedFile) return;
@@ -738,428 +567,370 @@ export function ReceiverPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────────────────
   return (
-    <div>
-      {/* ── Input mode toggle ─────────────────────────────────────────────────────── */}
-      <div style={S.section}>
-        <div style={S.label}>{t('receiver.input.mode')}</div>
-        <div style={S.toggleGroup}>
-          <button
-            style={S.toggleBtn(inputMode === 'camera')}
-            onClick={() => { stopScanning(); setInputMode('camera'); }}
-          >
-            📷 {t('receiver.input.camera')}
-          </button>
-          <button
-            style={S.toggleBtn(inputMode === 'gif-file')}
-            onClick={() => { stopScanning(); setInputMode('gif-file'); }}
-          >
-            🎞️ {t('receiver.input.gif')}
-          </button>
+    <>
+      {/* ── Input mode ─────────────────────────────────────────────────────── */}
+      <div className="rq-card">
+        <div className="rq-row">
+          <span className="rq-label">{t('receiver.input.mode')}</span>
+          <div className="rq-toggle">
+            <button
+              className={inputMode === 'camera' ? 'rq-toggle-btn active' : 'rq-toggle-btn'}
+              onClick={() => { stopScanning(); setInputMode('camera'); }}
+            >
+              📷 {t('receiver.input.camera')}
+            </button>
+            <button
+              className={inputMode === 'gif-file' ? 'rq-toggle-btn active' : 'rq-toggle-btn'}
+              onClick={() => { stopScanning(); setInputMode('gif-file'); }}
+            >
+              🎞️ {t('receiver.input.gif')}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div style={S.section}>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>{t('receiver.fec')}</span>
-            <span style={S.statValue}>{formatFecCodec(fecCodec)}</span>
-          </div>
-          <select
-            value={fecCodec}
-            style={S.select}
-            onChange={(e) => handleFecCodecChange((e.target as HTMLSelectElement).value)}
-          >
-            {RECEIVER_FEC_CODEC_OPTIONS.map((codec) => (
-              <option key={codec} value={codec}>
-                {formatFecCodec(codec)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={S.label}>{t('receiver.decodePreset')}</span>
-            <span style={S.statValue}>{formatDecodePreset(decodePreset)}</span>
-          </div>
-          <select
-            value={decodePreset}
-            style={S.select}
-            onChange={(e) => handleDecodePresetChange((e.target as HTMLSelectElement).value)}
-          >
-            {DECODE_PRESET_OPTIONS.map((preset) => (
-              <option key={preset} value={preset}>
-                {formatDecodePreset(preset)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="button"
-          style={S.btnSecondary}
-          onClick={() => setAdvancedDecodeOpen((open) => !open)}
-        >
-          {advancedDecodeOpen ? t('receiver.advanced.hide') : t('receiver.advanced.show')}
-        </button>
-        {advancedDecodeOpen && (
-          <div style={{ marginTop: 14, display: 'grid', gap: 12 }}>
-            <label>
-              <span style={S.label}>{t('receiver.maxSymbols')}</span>
-              <select
-                value={String(decodeSettings.maxSymbols)}
-                style={S.select}
-                onChange={(e) => {
-                  updateDecodeAdvancedField(
-                    'maxSymbols',
-                    parseMaxSymbolsMode((e.target as HTMLSelectElement).value),
-                  );
-                }}
+      <div className="rq-grid">
+        {/* ── LEFT: preview ─────────────────────────────────────────────── */}
+        <div className="rq-col">
+          {inputMode === 'camera' ? (
+            <div className="rq-card">
+              <div className="rq-card-title">{t('receiver.camera')}</div>
+              <div className="rq-row-between" style={{ marginBottom: 14 }}>
+                <span className="rq-label">{t('receiver.scanRate')}</span>
+                <span className="rq-stat-v">{scanRateFps} fps · {formatDelayMs(scanIntervalMs)} ms/sample</span>
+              </div>
+              <input
+                type="range"
+                className="rq-range"
+                min={MIN_SCAN_RATE_FPS}
+                max={MAX_SCAN_RATE_FPS}
+                step={1}
+                value={scanRateFps}
+                onInput={(e) => handleScanRateChange((e.target as HTMLInputElement).value)}
+              />
+              <div className="rq-slider-labels">
+                <span>{t('receiver.scanRate.stable')}</span>
+                <span>{t('receiver.scanRate.fast')}</span>
+              </div>
+              <div
+                ref={videoContainerRef}
+                style={{ position: 'relative', display: 'inline-block', maxWidth: 560, width: '100%', marginTop: 14 }}
               >
-                {MAX_SYMBOL_OPTIONS.map((value) => (
-                  <option key={String(value)} value={String(value)}>
-                    {formatMaxSymbols(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span style={S.label}>{t('receiver.binarizer')}</span>
-              <select
-                value={decodeSettings.binarizer}
-                style={S.select}
-                onChange={(e) => {
-                  updateDecodePresetField(
-                    'binarizer',
-                    normalizeBinarizer((e.target as HTMLSelectElement).value),
-                  );
-                }}
-              >
-                {BINARIZER_OPTIONS.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div style={S.row}>
-              <label style={S.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={decodeSettings.tryHarder}
-                  onChange={(e) => updateDecodePresetField('tryHarder', (e.target as HTMLInputElement).checked)}
+                <video ref={videoRef} className="rq-video" playsInline muted />
+                {/* Scan-region overlay */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    border: '2px dashed rgba(109,139,255,.7)',
+                    borderRadius: 10,
+                    pointerEvents: 'none',
+                  }}
                 />
-                tryHarder
-              </label>
-              <label style={S.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={decodeSettings.tryRotate}
-                  onChange={(e) => updateDecodePresetField('tryRotate', (e.target as HTMLInputElement).checked)}
-                />
-                tryRotate
-              </label>
-              <label style={S.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={decodeSettings.tryInvert}
-                  onChange={(e) => updateDecodePresetField('tryInvert', (e.target as HTMLInputElement).checked)}
-                />
-                tryInvert
-              </label>
-              <label style={S.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={decodeSettings.tryDownscale}
-                  onChange={(e) => updateDecodeAdvancedField('tryDownscale', (e.target as HTMLInputElement).checked)}
-                />
-                tryDownscale
-              </label>
-            </div>
-            <label>
-              <span style={S.label}>{t('receiver.downscaleFactor')}</span>
-              <select
-                value={String(decodeSettings.downscaleFactor)}
-                style={S.select}
-                disabled={!decodeSettings.tryDownscale}
-                onChange={(e) => {
-                  updateDecodeAdvancedField(
-                    'downscaleFactor',
-                    parseDownscaleFactor((e.target as HTMLSelectElement).value),
-                  );
-                }}
-              >
-                {DOWNSCALE_FACTOR_OPTIONS.map((value) => (
-                  <option key={value} value={String(value)}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        )}
-      </div>
+                {/* Corner markers */}
+                <div style={{ position: 'absolute', top: 0, left: 0, width: 18, height: 18, borderTop: '3px solid #6d8bff', borderLeft: '3px solid #6d8bff', pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', top: 0, right: 0, width: 18, height: 18, borderTop: '3px solid #6d8bff', borderRight: '3px solid #6d8bff', pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', bottom: 0, left: 0, width: 18, height: 18, borderBottom: '3px solid #6d8bff', borderLeft: '3px solid #6d8bff', pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderBottom: '3px solid #6d8bff', borderRight: '3px solid #6d8bff', pointerEvents: 'none' }} />
+              </div>
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-      {/* ── Camera preview ────────────────────────────────────────────────── */}
-      {inputMode === 'camera' && (
-        <div style={S.section}>
-          <div style={S.label}>{t('receiver.camera')}</div>
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={S.label}>{t('receiver.scanRate')}</span>
-              <span style={S.statValue}>{scanRateFps} fps · {formatDelayMs(scanIntervalMs)} ms/sample</span>
-            </div>
-            <input
-              type="range"
-              min={MIN_SCAN_RATE_FPS}
-              max={MAX_SCAN_RATE_FPS}
-              step={1}
-              value={scanRateFps}
-              style={S.slider}
-              onInput={(e) => handleScanRateChange((e.target as HTMLInputElement).value)}
-            />
-            <div style={S.sliderLabels}>
-              <span>{t('receiver.scanRate.stable')}</span>
-              <span>{t('receiver.scanRate.fast')}</span>
-            </div>
-          </div>
-          <div
-            ref={videoContainerRef}
-            style={{ position: 'relative', display: 'inline-block', maxWidth: 480, width: '100%' }}
-          >
-            <video ref={videoRef} style={{ width: '100%', borderRadius: 6, background: '#000', display: 'block' }} playsInline muted />
-            {/* Scan-region overlay */}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                border: '2px dashed rgba(88, 166, 255, 0.7)',
-                borderRadius: 8,
-                pointerEvents: 'none',
-              }}
-            />
-            {/* Corner markers */}
-            <div style={{ position: 'absolute', top: 0, left: 0, width: 16, height: 16, borderTop: '3px solid #58a6ff', borderLeft: '3px solid #58a6ff', pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', top: 0, right: 0, width: 16, height: 16, borderTop: '3px solid #58a6ff', borderRight: '3px solid #58a6ff', pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', bottom: 0, left: 0, width: 16, height: 16, borderBottom: '3px solid #58a6ff', borderLeft: '3px solid #58a6ff', pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', bottom: 0, right: 0, width: 16, height: 16, borderBottom: '3px solid #58a6ff', borderRight: '3px solid #58a6ff', pointerEvents: 'none' }} />
-          </div>
-          <canvas ref={canvasRef} style={{ display: 'none' }} />
+              {scanning && (
+                <div className="rq-stats">
+                  <span>{t('receiver.stat.decoded')} <span className="rq-stat-v">{framesWithQR}</span></span>
+                  <span>{t('receiver.stat.unique')} <span className="rq-stat-v">{uniquePackets}</span></span>
+                  <span>{t('receiver.stat.useful')} <span className="rq-stat-v">{acceptedPackets}/{neededPackets || '?'}</span></span>
+                  {duplicatePackets > 0 && (<span>{t('receiver.stat.dupes')} <span className="rq-stat-v">{duplicatePackets}</span></span>)}
+                  <span>{t('receiver.stat.gens')} <span className="rq-stat-v">{solvedGens}/{sourceGens}</span></span>
+                  <span>{t('receiver.stat.qr')} <span className="rq-stat-v">{formatDetectedQR(detectedQrVersion, detectedSymbolSize)}</span></span>
+                  {detectedFecCodec && (<span>{t('receiver.stat.fec')} <span className="rq-stat-v">{formatDetectedFecCodec(detectedFecCodec)}</span></span>)}
+                  <span>{t('receiver.stat.decode')} <span className="rq-stat-v">{decodedQrPerSecond.toFixed(1)} QR/s</span></span>
+                  <span>{t('receiver.stat.time')} <span className="rq-stat-v">{formatDuration(elapsedMs)}</span></span>
+                  {throughputKbps > 0 && (<span>{t('receiver.stat.speed')} <span className="rq-stat-v">{throughputKbps.toFixed(1)} KB/s</span></span>)}
+                  <span>·</span>
+                  <span>{status || t('receiver.stat.working')}</span>
+                </div>
+              )}
 
-          {/* Inline stats above controls */}
-          {scanning && (
-            <div style={S.statsBar}>
-              <span>
-                {t('receiver.stat.decoded')}{' '}
-                <span style={S.statValue}>
-                  {framesWithQR}
+              <div className="rq-row" style={{ marginTop: 12 }}>
+                {!scanning ? (
+                  <button className="rq-btn" onClick={startCameraScanning}>
+                    ▶ {t('receiver.startScan')}
+                  </button>
+                ) : (
+                  <button className="rq-btn-stop" onClick={stopScanning}>
+                    ■ {t('receiver.stopScan')}
+                  </button>
+                )}
+                {hasZoomSupport && scanning && (
+                  <div className="rq-row" style={{ gap: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t('receiver.zoom')}</span>
+                    <input
+                      type="range"
+                      className="rq-range"
+                      min={1}
+                      max={3}
+                      step={0.5}
+                      value={zoomLevel}
+                      onChange={(e) => applyCameraZoom(Number((e.target as HTMLInputElement).value))}
+                      style={{ width: 120 }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--text)', minWidth: 30 }}>{zoomLevel}×</span>
+                  </div>
+                )}
+              </div>
+              <p className="rq-hint">
+                {hasZoomSupport ? t('receiver.hint.zoom') : t('receiver.hint.noZoom')}
+              </p>
+              <p className="rq-hint">{t('receiver.preview.cameraHint')}</p>
+              {error && <div className="rq-warn">⚠ {error}</div>}
+            </div>
+          ) : (
+            <div className="rq-card">
+              <div className="rq-card-title">{t('receiver.uploadGif')}</div>
+              <p className="rq-hint" style={{ marginBottom: 10 }}>{t('receiver.uploadGif.desc')}</p>
+              <div className="rq-row">
+                <input
+                  ref={gifFileInputRef}
+                  type="file"
+                  accept=".gif,image/gif"
+                  className="rq-hidden"
+                  onChange={handleGifFile}
+                />
+                <button
+                  type="button"
+                  className="rq-btn-secondary"
+                  disabled={scanning}
+                  onClick={handleChooseGifFile}
+                >
+                  {t('receiver.chooseGif')}
+                </button>
+                <span className="rq-filename" title={gifFileName}>
+                  {scanning ? t('receiver.processingGif') : gifFileName || t('receiver.noGif')}
                 </span>
-              </span>
-              <span>
-                {t('receiver.stat.unique')} <span style={S.statValue}>{uniquePackets}</span>
-              </span>
-              <span>
-                {t('receiver.stat.useful')} <span style={S.statValue}>{acceptedPackets}/{neededPackets || '?'}</span>
-              </span>
-              {duplicatePackets > 0 && (
-                <span>
-                  {t('receiver.stat.dupes')} <span style={S.statValue}>{duplicatePackets}</span>
-                </span>
+              </div>
+              {scanning && (
+                <div className="rq-stats">
+                  <span>{t('receiver.stat.decoded')} <span className="rq-stat-v">{framesWithQR}</span></span>
+                  <span>{t('receiver.stat.unique')} <span className="rq-stat-v">{uniquePackets}</span></span>
+                  <span>{t('receiver.stat.useful')} <span className="rq-stat-v">{acceptedPackets}/{neededPackets || '?'}</span></span>
+                  {duplicatePackets > 0 && (<span>{t('receiver.stat.dupes')} <span className="rq-stat-v">{duplicatePackets}</span></span>)}
+                  <span>{t('receiver.stat.gens')} <span className="rq-stat-v">{solvedGens}/{sourceGens}</span></span>
+                  <span>{t('receiver.stat.qr')} <span className="rq-stat-v">{formatDetectedQR(detectedQrVersion, detectedSymbolSize)}</span></span>
+                  {detectedFecCodec && (<span>{t('receiver.stat.fec')} <span className="rq-stat-v">{formatDetectedFecCodec(detectedFecCodec)}</span></span>)}
+                  <span>{t('receiver.stat.decode')} <span className="rq-stat-v">{decodedQrPerSecond.toFixed(1)} QR/s</span></span>
+                  <span>{t('receiver.stat.time')} <span className="rq-stat-v">{formatDuration(elapsedMs)}</span></span>
+                  {throughputKbps > 0 && (<span>{t('receiver.stat.speed')} <span className="rq-stat-v">{throughputKbps.toFixed(1)} KB/s</span></span>)}
+                  <span>·</span>
+                  <span>{status || t('receiver.stat.working')}</span>
+                </div>
               )}
-              <span>
-                {t('receiver.stat.gens')} <span style={S.statValue}>{solvedGens}/{sourceGens}</span>
-              </span>
-              <span>
-                {t('receiver.stat.qr')} <span style={S.statValue}>{formatDetectedQR(detectedQrVersion, detectedSymbolSize)}</span>
-              </span>
-              {detectedFecCodec && (
-                <span>
-                  {t('receiver.stat.fec')} <span style={S.statValue}>{formatDetectedFecCodec(detectedFecCodec)}</span>
-                </span>
-              )}
-              <span>
-                {t('receiver.stat.decode')} <span style={S.statValue}>{decodedQrPerSecond.toFixed(1)} QR/s</span>
-              </span>
-              <span>
-                {t('receiver.stat.time')} <span style={S.statValue}>{formatDuration(elapsedMs)}</span>
-              </span>
-              {throughputKbps > 0 && (
-                <span>
-                  {t('receiver.stat.speed')} <span style={S.statValue}>{throughputKbps.toFixed(1)} KB/s</span>
-                </span>
-              )}
-              <span>·</span>
-              <span>{status || t('receiver.stat.working')}</span>
+              <p className="rq-hint" style={{ marginTop: 10 }}>{t('receiver.preview.gifHint')}</p>
+              {error && <div className="rq-warn" style={{ marginTop: 8 }}>⚠ {error}</div>}
             </div>
           )}
+        </div>
 
-          <div style={{ ...S.row, marginTop: 10 }}>
-            {!scanning ? (
-              <button style={S.btn} onClick={startCameraScanning}>
-                ▶ {t('receiver.startScan')}
-              </button>
-            ) : (
-              <button style={S.btnStop} onClick={stopScanning}>
-                ■ {t('receiver.stopScan')}
-              </button>
-            )}
-            {hasZoomSupport && scanning && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12, color: '#8b949e' }}>{t('receiver.zoom')}</span>
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.5}
-                  value={zoomLevel}
-                  onChange={(e) => applyCameraZoom(Number((e.target as HTMLInputElement).value))}
-                  style={{ width: 120 }}
-                />
-                <span style={{ fontSize: 12, color: '#c9d1d9', minWidth: 30 }}>{zoomLevel}×</span>
+        {/* ── RIGHT: settings + results ─────────────────────────────────── */}
+        <div className="rq-col">
+          <div className="rq-card">
+            <div className="rq-card-title">{t('receiver.settings')}</div>
+            <div style={{ marginBottom: 12 }}>
+              <div className="rq-row-between">
+                <span className="rq-label">{t('receiver.fec')}</span>
+                <span className="rq-stat-v">{formatFecCodec(fecCodec)}</span>
+              </div>
+              <select
+                value={fecCodec}
+                className="rq-select"
+                onChange={(e) => handleFecCodecChange((e.target as HTMLSelectElement).value)}
+              >
+                {RECEIVER_FEC_CODEC_OPTIONS.map((codec) => (
+                  <option key={codec} value={codec}>
+                    {formatFecCodec(codec)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div className="rq-row-between">
+                <span className="rq-label">{t('receiver.decodePreset')}</span>
+                <span className="rq-stat-v">{formatDecodePreset(decodePreset)}</span>
+              </div>
+              <select
+                value={decodePreset}
+                className="rq-select"
+                onChange={(e) => handleDecodePresetChange((e.target as HTMLSelectElement).value)}
+              >
+                {DECODE_PRESET_OPTIONS.map((preset) => (
+                  <option key={preset} value={preset}>
+                    {formatDecodePreset(preset)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="rq-btn-secondary"
+              onClick={() => setAdvancedDecodeOpen((open) => !open)}
+            >
+              {advancedDecodeOpen ? t('receiver.advanced.hide') : t('receiver.advanced.show')}
+            </button>
+            {advancedDecodeOpen && (
+              <div style={{ marginTop: 14, display: 'grid', gap: 12 }}>
+                <label>
+                  <span className="rq-label">{t('receiver.maxSymbols')}</span>
+                  <select
+                    value={String(decodeSettings.maxSymbols)}
+                    className="rq-select"
+                    onChange={(e) => {
+                      updateDecodeAdvancedField(
+                        'maxSymbols',
+                        parseMaxSymbolsMode((e.target as HTMLSelectElement).value),
+                      );
+                    }}
+                  >
+                    {MAX_SYMBOL_OPTIONS.map((value) => (
+                      <option key={String(value)} value={String(value)}>
+                        {formatMaxSymbols(value)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span className="rq-label">{t('receiver.binarizer')}</span>
+                  <select
+                    value={decodeSettings.binarizer}
+                    className="rq-select"
+                    onChange={(e) => {
+                      updateDecodePresetField(
+                        'binarizer',
+                        normalizeBinarizer((e.target as HTMLSelectElement).value),
+                      );
+                    }}
+                  >
+                    {BINARIZER_OPTIONS.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="rq-row">
+                  <label className="rq-check">
+                    <input
+                      type="checkbox"
+                      checked={decodeSettings.tryHarder}
+                      onChange={(e) => updateDecodePresetField('tryHarder', (e.target as HTMLInputElement).checked)}
+                    />
+                    tryHarder
+                  </label>
+                  <label className="rq-check">
+                    <input
+                      type="checkbox"
+                      checked={decodeSettings.tryRotate}
+                      onChange={(e) => updateDecodePresetField('tryRotate', (e.target as HTMLInputElement).checked)}
+                    />
+                    tryRotate
+                  </label>
+                  <label className="rq-check">
+                    <input
+                      type="checkbox"
+                      checked={decodeSettings.tryInvert}
+                      onChange={(e) => updateDecodePresetField('tryInvert', (e.target as HTMLInputElement).checked)}
+                    />
+                    tryInvert
+                  </label>
+                  <label className="rq-check">
+                    <input
+                      type="checkbox"
+                      checked={decodeSettings.tryDownscale}
+                      onChange={(e) => updateDecodeAdvancedField('tryDownscale', (e.target as HTMLInputElement).checked)}
+                    />
+                    tryDownscale
+                  </label>
+                </div>
+                <label>
+                  <span className="rq-label">{t('receiver.downscaleFactor')}</span>
+                  <select
+                    value={String(decodeSettings.downscaleFactor)}
+                    className="rq-select"
+                    disabled={!decodeSettings.tryDownscale}
+                    onChange={(e) => {
+                      updateDecodeAdvancedField(
+                        'downscaleFactor',
+                        parseDownscaleFactor((e.target as HTMLSelectElement).value),
+                      );
+                    }}
+                  >
+                    {DOWNSCALE_FACTOR_OPTIONS.map((value) => (
+                      <option key={value} value={String(value)}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
             )}
           </div>
-          <p style={{ fontSize: 12, color: '#8b949e', marginTop: 6 }}>
-            {hasZoomSupport
-              ? t('receiver.hint.zoom')
-              : t('receiver.hint.noZoom')}
-          </p>
-          {error && <div style={S.warn}>⚠ {error}</div>}
-        </div>
-      )}
 
-      {/* ── GIF file upload ────────────────────────────────────────────────────────────── */}
-      {inputMode === 'gif-file' && (
-        <div style={S.section}>
-          <div style={S.label}>{t('receiver.uploadGif')}</div>
-          <p style={{ fontSize: 13, color: '#8b949e', marginBottom: 8 }}>
-            {t('receiver.uploadGif.desc')}
-          </p>
-          <div style={S.row}>
-            <input
-              ref={gifFileInputRef}
-              type="file"
-              accept=".gif,image/gif"
-              style={S.hiddenInput}
-              onChange={handleGifFile}
-            />
-            <button
-              type="button"
-              style={S.btnSecondary}
-              disabled={scanning}
-              onClick={handleChooseGifFile}
-            >
-              {t('receiver.chooseGif')}
-            </button>
-            <span style={S.fileName} title={gifFileName}>
-              {scanning ? t('receiver.processingGif') : gifFileName || t('receiver.noGif')}
-            </span>
-          </div>
-          {scanning && (
-            <div style={S.statsBar}>
-              <span>
-                {t('receiver.stat.decoded')}{' '}
-                <span style={S.statValue}>
-                  {framesWithQR}
-                </span>
-              </span>
-              <span>
-                {t('receiver.stat.unique')} <span style={S.statValue}>{uniquePackets}</span>
-              </span>
-              <span>
-                {t('receiver.stat.useful')} <span style={S.statValue}>{acceptedPackets}/{neededPackets || '?'}</span>
-              </span>
-              {duplicatePackets > 0 && (
-                <span>
-                  {t('receiver.stat.dupes')} <span style={S.statValue}>{duplicatePackets}</span>
-                </span>
-              )}
-              <span>
-                {t('receiver.stat.gens')} <span style={S.statValue}>{solvedGens}/{sourceGens}</span>
-              </span>
-              <span>
-                {t('receiver.stat.qr')} <span style={S.statValue}>{formatDetectedQR(detectedQrVersion, detectedSymbolSize)}</span>
-              </span>
-              {detectedFecCodec && (
-                <span>
-                  {t('receiver.stat.fec')} <span style={S.statValue}>{formatDetectedFecCodec(detectedFecCodec)}</span>
-                </span>
-              )}
-              <span>
-                {t('receiver.stat.decode')} <span style={S.statValue}>{decodedQrPerSecond.toFixed(1)} QR/s</span>
-              </span>
-              <span>
-                {t('receiver.stat.time')} <span style={S.statValue}>{formatDuration(elapsedMs)}</span>
-              </span>
+          {(elapsedMs > 0 || throughputKbps > 0) && !scanning && (
+            <div className="rq-card rq-summary">
+              {t('receiver.transferComplete')}{' '}
+              <span className="rq-stat-v">{formatDuration(elapsedMs)}</span>
               {throughputKbps > 0 && (
                 <span>
-                  {t('receiver.stat.speed')} <span style={S.statValue}>{throughputKbps.toFixed(1)} KB/s</span>
+                  {' '}·{' '}{t('receiver.avg')} <span className="rq-stat-v">{throughputKbps.toFixed(1)} KB/s</span>
                 </span>
               )}
-              <span>·</span>
-              <span>{status || t('receiver.stat.working')}</span>
+              <span>
+                {' '}·{' '}{t('receiver.data')}{' '}
+                <span className="rq-stat-v">
+                  {formatBytes(
+                    dataLengthRef.current ||
+                    (receivedFile?.data.byteLength ?? receivedText.length ?? 0)
+                  )}
+                </span>
+              </span>
             </div>
           )}
-          {error && <div style={{ ...S.warn, marginTop: 8 }}>⚠ {error}</div>}
-        </div>
-      )}
 
-      {/* ── Persistent transfer summary (visible even after scanning stops) ── */}
-      {(elapsedMs > 0 || throughputKbps > 0) && !scanning && (
-        <div style={{ ...S.section, padding: '10px 20px', fontSize: 13, color: '#8b949e' }}>
-          {t('receiver.transferComplete')}{' '}
-          <span style={S.statValue}>{formatDuration(elapsedMs)}</span>
-          {throughputKbps > 0 && (
-            <span>
-              {' '}·{' '}{t('receiver.avg')} <span style={S.statValue}>{throughputKbps.toFixed(1)} KB/s</span>
-            </span>
+          {receivedText && (
+            <div className="rq-card" ref={textResultRef}>
+              <div className="rq-row-between" style={{ marginBottom: 8 }}>
+                <div className="rq-label" style={{ marginBottom: 0 }}>{t('receiver.recoveredText')}</div>
+                <button
+                  type="button"
+                  className="rq-btn-secondary"
+                  onClick={handleCopyRecoveredText}
+                >
+                  {textCopied ? t('receiver.copied') : t('receiver.copyText')}
+                </button>
+              </div>
+              <textarea
+                className="rq-textarea"
+                value={receivedText}
+                readOnly
+              />
+            </div>
           )}
-          <span>
-            {' '}·{' '}{t('receiver.data')}{' '}
-            <span style={S.statValue}>
-              {formatBytes(
-                dataLengthRef.current ||
-                (receivedFile?.data.byteLength ?? receivedText.length ?? 0)
-              )}
-            </span>
-          </span>
-        </div>
-      )}
 
-      {/* ── Received text ────────────────────────────────────────────────────────────────── */}
-      {receivedText && (
-        <div style={S.section} ref={textResultRef}>
-          <div style={{ ...S.row, justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div style={{ ...S.label, marginBottom: 0 }}>{t('receiver.recoveredText')}</div>
-            <button
-              type="button"
-              style={S.btnSecondary}
-              onClick={handleCopyRecoveredText}
-            >
-              {textCopied ? t('receiver.copied') : t('receiver.copyText')}
-            </button>
-          </div>
-          <textarea
-            style={S.textarea}
-            value={receivedText}
-            readOnly
-          />
+          {receivedFile && (
+            <div className="rq-card" ref={fileResultRef}>
+              <div className="rq-card-title">{t('receiver.recoveredFile')}</div>
+              <p style={{ margin: '6px 0', fontSize: 14 }}>
+                <strong>{t('receiver.file')}</strong> {receivedFile.filename || '(unnamed)'} &middot;{' '}
+                {formatBytes(receivedFile.data.byteLength)} &middot;{' '}
+                {receivedFile.mime}
+              </p>
+              <button className="rq-btn" onClick={handleDownload}>
+                ⸗ {t('receiver.downloadRecovered')}
+              </button>
+            </div>
+          )}
         </div>
-      )}
-
-      {/* ── Download recovered file ────────────────────────────────────────────────── */}
-      {receivedFile && (
-        <div style={S.section} ref={fileResultRef}>
-          <div style={S.label}>{t('receiver.recoveredFile')}</div>
-          <p style={{ margin: '6px 0', fontSize: 14 }}>
-            <strong>{t('receiver.file')}</strong> {receivedFile.filename || '(unnamed)'} &middot;{' '}
-            {formatBytes(receivedFile.data.byteLength)} &middot;{' '}
-            {receivedFile.mime}
-          </p>
-          <button style={S.btn} onClick={handleDownload}>
-            ⸗ {t('receiver.downloadRecovered')}
-          </button>
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
 
